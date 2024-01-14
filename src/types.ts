@@ -1,3 +1,5 @@
+import cytoscape from 'cytoscape';
+
 export interface EtymologyListing {
     word: string;
     rawResult?: StringBreakdown[];
@@ -171,7 +173,12 @@ export const descendantRelationships = [
     DescendantRelationship.inherited,
 ];
 
-export const relationshipCategories: ['solid' | 'dotted' | 'dashed' | 'double', (DescendantRelationship | DerivationType)[]][] = [
+export type RelationshipCategory = [
+    'solid' | 'dotted' | 'dashed' | 'double',
+    (DescendantRelationship | DerivationType)[],
+    cytoscape.Css.Edge,
+];
+export const relationshipCategories: RelationshipCategory[] = [
     [
         'solid',
         [
@@ -185,7 +192,8 @@ export const relationshipCategories: ['solid' | 'dotted' | 'dashed' | 'double', 
 
             DerivationType.of,
             DerivationType.root,
-        ]
+        ],
+        {}
     ],
     [
         'dashed',
@@ -198,10 +206,11 @@ export const relationshipCategories: ['solid' | 'dotted' | 'dashed' | 'double', 
             DescendantRelationship.calque,
             DerivationType.calque,
             DerivationType.asIf,
-        ]
+        ],
+        {}
     ],
     [
-        'double',
+        'dashed',
         [
             DescendantRelationship.derivative,
             DerivationType.formOf,
@@ -209,7 +218,10 @@ export const relationshipCategories: ['solid' | 'dotted' | 'dashed' | 'double', 
             DerivationType.compound,
             DerivationType.variant,
             DerivationType.clipping,
-        ]
+        ],
+        {
+            'line-dash-pattern': [6, 3],
+        }
     ],
     [
         'dotted',
@@ -217,5 +229,6 @@ export const relationshipCategories: ['solid' | 'dotted' | 'dashed' | 'double', 
             DerivationType.via,
             DerivationType.ultimately,
         ],
+        {}
     ]
 ];

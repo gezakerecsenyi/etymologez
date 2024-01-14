@@ -3,12 +3,15 @@ import {
     EtymologyListing,
     LinkSearchRes,
     SectionHTML,
+    SectionWikitext,
     StringBreakdown,
     WordListing,
 } from '../../src/types';
 import { fetchWiktionaryData } from './cache';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
+import breakDownEtymologyDOM from './breakDownEtymologyDOM';
+import { parseWikitextWord } from './util';
 
 const derivationTypes = [
     DerivationType.ultimately,
@@ -32,7 +35,7 @@ const derivationTypesRegexp = derivationTypes
     .map(e => `[${e[0].toLowerCase()}${e[0].toUpperCase()}]${e.slice(1).toLowerCase()}`)
     .join('|');
 
-export function parseEtymology(etymologyEntries: StringBreakdown[], offset?: number): EtymologyListing | null {
+export function parseEtymologyString(etymologyEntries: StringBreakdown[], offset?: number): EtymologyListing | null {
     const isBadLink = (e: StringBreakdown) => {
         if (e.type === 'string') {
             return false;
@@ -44,11 +47,7 @@ export function parseEtymology(etymologyEntries: StringBreakdown[], offset?: num
         }
 
         const split = url.pathname.split(':');
-        if (split.length > 1 && !split[0].endsWith('Reconstruction')) {
-            return true;
-        }
-
-        return false;
+        return split.length > 1 && !split[0].endsWith('Reconstruction');
     };
 
     const mergeStrings = (q: StringBreakdown[]) => q.reduce(
@@ -291,7 +290,78 @@ export function parseEtymology(etymologyEntries: StringBreakdown[], offset?: num
     return null;
 }
 
-export async function populateEtymology(listing: WordListing, offset?: number): Promise<EtymologyListing | null> {
+export function parseEtymologyWikitext(wikitext: string, offset?: number): EtymologyListing | null {
+    const relevantSections = wikitext.split(
+        /{{((?:m(?:ention)?|uder|der(?:ived)?|inh(?:erited)?|bor(?:rowed)?)\|[^}]+)}}/g
+    );
+
+    let listingIndex = 0;
+    let lastType = DerivationType.from;
+    for (let i = 0; i < relevantSections.length; i++) {
+        const section = relevantSections[i];
+
+        if (i % 2 === 1) {
+            const segments = section.split('|');
+            const posSegments = segments.filter(e => !e.includes('='));
+
+            switch (posSegments[0]) {
+                case 'm':
+                case 'mention':
+                    if (listingIndex === offset) {
+                        const language = posSegments[1];
+                        const word = parseWikitextWord(segments, posSegments[2] || posSegments[3]);
+
+                        return {
+                            language,
+                            word,
+                            relationship: relevantSections[i - 1].match(/^\s*(?:or|[\/,])\s*$/g) ?
+                                lastType :
+                                DerivationType.from,
+                            statedGloss: posSegments[4] || segments.find(e => e.match(/(t|lit)=/g))?.split('=')[1],
+                        };
+                    }
+
+                    break;
+                case 'uder':
+                    lastType = DerivationType.from;
+                    break;
+                case 'der':
+                case 'derived':
+                    lastType = DerivationType.from;
+                    break;
+                case 'inh':
+                case 'inherited':
+                    lastType = DerivationType.inherited;
+                    break;
+                case 'bor':
+                case 'borrowed':
+                    lastType = DerivationType.borrowed;
+                    break;
+            }
+
+            if (listingIndex === offset || offset === undefined) {
+                const language = posSegments[2];
+                const word = parseWikitextWord(segments, posSegments[3] || posSegments[4]);
+
+                return {
+                    language,
+                    word,
+                    relationship: lastType,
+                    statedGloss: posSegments[3] || segments.find(e => e.match(/(t|lit|gloss)=/g))?.split('=')[1],
+                };
+            }
+
+            listingIndex++;
+        }
+    }
+
+    return null;
+}
+
+export default async function populateEtymology(
+    listing: WordListing,
+    offset?: number,
+): Promise<EtymologyListing | null> {
     if (!listing) {
         return null;
     }
@@ -330,124 +400,41 @@ export async function populateEtymology(listing: WordListing, offset?: number): 
         }
     }
 
+    let gotListing: EtymologyListing | null = null;
+    const wikitextResponse = await fetchWiktionaryData(
+        listing.word,
+        'wikitext',
+        listing.etymologySectionHead,
+        listing.language,
+    ) as SectionWikitext;
+    if (wikitextResponse) {
+        gotListing = parseEtymologyWikitext(wikitextResponse['*']);
+    }
+
     const responseHere = await fetchWiktionaryData(
         listing.word,
         'text',
         listing.etymologySectionHead,
         listing.language,
     ) as SectionHTML;
+
     if (!responseHere) {
         return basicResult;
     }
 
-    const parent = responseHere['*'].getElementsByClassName('mw-parser-output')[0];
-    let relevantNodes = [] as Element[];
-    let foundStart = false;
-    for (const child of parent.children) {
-        if ([
-            'P',
-            'UL',
-        ].includes(child.nodeName)) {
-            relevantNodes.push(child);
+    const wholeStringSoFar = breakDownEtymologyDOM(responseHere['*']);
 
-            if (!foundStart) {
-                foundStart = true;
-            }
-        } else {
-            if (foundStart) {
-                break;
-            }
-        }
+    if (!gotListing) {
+        gotListing = parseEtymologyString(wholeStringSoFar, offset);
     }
 
-    let wholeStringSoFar = [] as StringBreakdown[];
-    let currentString = '';
-    let inLink = false;
-    let linkTo = '';
-    let linkLevel = -1;
-
-    function traverseText(node: Element | ChildNode, level: number) {
-        if (!node.textContent) {
-            return;
-        }
-
-        function checkIfInLink(preCallback?: () => void) {
-            if (node.nodeName === 'A') {
-                if (preCallback) {
-                    preCallback();
-                }
-
-                inLink = true;
-                linkTo = (node as HTMLAnchorElement).href!;
-                linkLevel = level;
-
-                return true;
-            }
-
-            return false;
-        }
-
-        if (inLink) {
-            if (level > linkLevel) {
-                currentString += node.textContent;
-            } else {
-                wholeStringSoFar.push({
-                    type: 'link',
-                    text: currentString,
-                    linkTo,
-                });
-                currentString = node.textContent;
-
-                if (!checkIfInLink()) {
-                    inLink = false;
-                    linkTo = '';
-                    linkLevel = -1;
-                }
-            }
-        } else {
-            if (!checkIfInLink(() => {
-                wholeStringSoFar.push({
-                    type: 'string',
-                    text: currentString,
-                });
-                currentString = node.textContent!;
-            })) {
-                if (node.hasChildNodes() && node.nodeName !== '#text') {
-                    for (let child of node.childNodes) {
-                        traverseText(child, level + 1);
-                    }
-                } else {
-                    currentString += node.textContent;
-                }
-            }
-        }
-    }
-
-    for (const element of relevantNodes) {
-        traverseText(element, 0);
-    }
-
-    if (inLink) {
-        wholeStringSoFar.push({
-            type: 'link',
-            text: currentString,
-            linkTo,
-        });
-    } else {
-        wholeStringSoFar.push({
-            type: 'string',
-            text: currentString,
-        });
-    }
-
-    const parsedRes = parseEtymology(wholeStringSoFar, offset);
-    if (parsedRes) {
+    if (gotListing) {
         return {
             word: listing.word,
             rawResult: wholeStringSoFar,
             language: listing.language,
-            fromWord: parsedRes,
-            relationship: parsedRes.relationship,
+            fromWord: gotListing,
+            relationship: gotListing.relationship,
         };
     }
 

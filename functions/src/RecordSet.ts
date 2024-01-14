@@ -6,6 +6,7 @@ export default class RecordSet {
     public searchIdentifier: string;
     private localChanges: Map<string, EtymologyRecord>;
     private openPromises: Promise<object>[];
+    private static maxSize = 200;
 
     constructor(searchIdentifier: string) {
         this.searchIdentifier = searchIdentifier;
@@ -101,7 +102,7 @@ export default class RecordSet {
             this.localChanges.set(e.id!, e);
         });
 
-        if (this.localChanges.size % 40 === 10) {
+        if (this.localChanges.size % RecordSet.maxSize === 10) {
             this.commit();
         }
 

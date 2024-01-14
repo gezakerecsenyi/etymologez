@@ -253,6 +253,7 @@ function App() {
                         selector: `edge[category="${e[0]}"]`,
                         style: {
                             'line-style': e[0],
+                            ...e[2],
                         },
                     })),
                     {

@@ -1,13 +1,20 @@
 import { DescendantRelationship, EtymologyRecord, SectionWikitext, WordListing } from '../../src/types';
 import { fetchWiktionaryData } from './cache';
+import { getDescendantsFromPage } from './categories';
 import { languageNameLookup } from './data';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
-import { populateEtymology } from './parseEtymology';
+import populateEtymology from './populateEtymology';
 import RecordSet from './RecordSet';
 import { wikidataDescendantTagMap } from './unrollEtymology';
+import { parseWikitextWord } from './util';
 
-export async function fetchDescendants(recordSet: RecordSet, listing: WordListing) {
+export async function fetchDescendants(
+    recordSet: RecordSet,
+    listing: WordListing,
+    metListings: Set<string>,
+    deepDescendantSearch?: boolean,
+) {
     if (!listing?.descendantsSectionHeads) {
         return;
     }
@@ -40,21 +47,8 @@ export async function fetchDescendants(recordSet: RecordSet, listing: WordListin
                     const line = lines[i];
 
                     const getWord = (t: string[]) => {
-                        const options = t.filter(e => !e.includes('='));
-                        if (options[2]) {
-                            return options[2];
-                        }
-
-                        if (options[3]) {
-                            return options[3];
-                        }
-
-                        const transliteration = t.find(e => e.startsWith('tr='));
-                        if (transliteration) {
-                            return transliteration.replace(/^tr=/g, '').replace(/<[a-z]+>/g, '');
-                        }
-
-                        return '[?]';
+                        const options = t.filter(e => !e.includes('='))
+                        return parseWikitextWord(t, options[2] || options[3]);
                     };
                     const getLanguage = (t: string[]) => languageNameLookup.get(t.filter(e => !e.includes('=') && ![
                         'l',
@@ -113,15 +107,24 @@ export async function fetchDescendants(recordSet: RecordSet, listing: WordListin
                     if (relevantListing) {
                         recordHere.isPriorityChoice = isPriorityChoice;
                         recordHere.fromWord = relevantListing;
-                        recordHere.fromWord!.etymology = await populateEtymology(
-                            relevantListing,
-                        ) || undefined;
+                        recordHere.fromWord.etymology = await populateEtymology(relevantListing) || undefined;
                     }
 
                     await recordSet.add(recordHere);
 
-                    if (relevantListing) {
-                        await fetchDescendants(recordSet, relevantListing);
+                    if (relevantListing && deepDescendantSearch) {
+                        await getDescendantsFromPage(
+                            recordSet,
+                            relevantListing,
+                            metListings,
+                            deepDescendantSearch,
+                        );
+                        await fetchDescendants(
+                            recordSet,
+                            relevantListing,
+                            metListings,
+                            deepDescendantSearch
+                        );
                     }
                 }
             }),

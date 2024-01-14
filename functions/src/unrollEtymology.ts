@@ -1,10 +1,10 @@
 import { getListingIdentifier } from '../../src/global/util';
-import { DescendantRelationship, EtymologyListing, WordListing } from '../../src/types';
+import { DerivationType, DescendantRelationship, EtymologyListing, WordListing } from '../../src/types';
 import { getDescendantsFromPage } from './categories';
 import { fetchDescendants } from './fetchDescendants';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
-import { populateEtymology } from './parseEtymology';
+import populateEtymology from './populateEtymology';
 import RecordSet from './RecordSet';
 
 export const wikidataDescendantTagMap = new Map(Object.entries({
@@ -25,6 +25,7 @@ export default async function unrollEtymology(
     deepDescendantSearch: boolean = false,
     metListings: Set<string> = new Set<string>(),
     markAsComplete: boolean = false,
+    backupSourceWord?: WordListing,
 ) {
     if (!listing) {
         return;
@@ -50,9 +51,44 @@ export default async function unrollEtymology(
         return;
     }
 
+    let id: string | undefined = undefined;
+    async function addRecordHere(
+        sourceWord: string,
+        sourceLanguage: string,
+        sourceListing: WordListing,
+        relationship: DerivationType | DescendantRelationship,
+        isPriorityChoice: boolean,
+    ) {
+        const [record] = await recordSet.add({
+            word: listing.word,
+            definition: listing.definition!,
+            language: listing.language,
+            sourceWord,
+            sourceDefinition: sourceListing.definition!,
+            sourceLanguage,
+            relationship,
+            fromWord: listing,
+            isPriorityChoice,
+        });
+
+        if (getDescendants) {
+            metListings.add(listingId);
+        }
+
+        await unrollEtymology(
+            recordSet,
+            sourceListing,
+            getDescendants,
+            deepDescendantSearch,
+            metListings,
+            true,
+        );
+
+        id = record.id!;
+    }
+
     let offset = 0;
     let etymologyHere: EtymologyListing | undefined;
-    let id: string | undefined = undefined;
     do {
         const newEtymology = await populateEtymology(listing, offset);
 
@@ -72,33 +108,13 @@ export default async function unrollEtymology(
                 );
 
                 if (listingHere) {
-                    const [record] = await recordSet.add({
-                        word: listing.word,
-                        definition: listing.definition!,
-                        language: listing.language,
-                        sourceWord: etymologyHere.fromWord.word,
-                        sourceDefinition: listingHere.definition!,
-                        sourceLanguage: etymologyHere.fromWord.language,
-                        relationship: etymologyHere.relationship,
-                        fromWord: listing,
-                        isPriorityChoice,
-                    });
-
-                    if (getDescendants) {
-                        metListings.add(listingId);
-                    }
-
-                    await unrollEtymology(
-                        recordSet,
+                    await addRecordHere(
+                        etymologyHere.fromWord.word,
+                        etymologyHere.fromWord.language,
                         listingHere,
-                        getDescendants,
-                        deepDescendantSearch,
-                        metListings,
-                        true,
+                        etymologyHere.relationship,
+                        isPriorityChoice,
                     );
-
-                    id = record.id!;
-
                     break;
                 } else {
                     offset++;
@@ -111,9 +127,19 @@ export default async function unrollEtymology(
         }
     } while (offset < 10);
 
+    if (!id && backupSourceWord) {
+        await addRecordHere(
+            backupSourceWord.word,
+            backupSourceWord.language,
+            backupSourceWord,
+            DerivationType.ultimately,
+            false,
+        );
+    }
+
     if (getDescendants) {
         await getDescendantsFromPage(recordSet, listing, metListings, deepDescendantSearch);
-        await fetchDescendants(recordSet, listing);
+        await fetchDescendants(recordSet, listing, metListings, deepDescendantSearch);
     }
 
     if (id && markAsComplete) {

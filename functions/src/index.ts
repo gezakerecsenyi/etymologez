@@ -5,7 +5,7 @@ import { SearchPing, WordListing } from '../../src/types';
 import { getListingIdentifier } from '../../src/global/util';
 import { usingCache } from './cache';
 import getWordData from './getWordData';
-import { populateEtymology } from './parseEtymology';
+import populateEtymology from './populateEtymology';
 import RecordSet from './RecordSet';
 import unrollEtymology from './unrollEtymology';
 

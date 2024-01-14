@@ -7,6 +7,17 @@ export function* chunks<T extends any>(array: T[], n: number): Generator<T[]> {
     }
 }
 
+export function parseWikitextWord(args: string[], bestGuess?: string) {
+    return (
+        bestGuess ||
+        args
+            .find(e => e.startsWith('tr='))
+            ?.replace(/^tr=/g, '')
+            .replace(/<[a-z]+>/g, '')
+    )
+        ?.replace(/^\^/g, '') || '[?]';
+}
+
 export function getContentWords(input: string, normalize?: boolean): string[] {
     let words = input
         .split(' ')

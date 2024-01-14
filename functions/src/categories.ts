@@ -1,5 +1,6 @@
 import { CategoryDump, SectionHTML, SectionWikitext, WordListing } from '../../src/types';
 import { fetchUrl, fetchWiktionaryData } from './cache';
+import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
 import RecordSet from './RecordSet';
 import unrollEtymology from './unrollEtymology';
@@ -103,13 +104,21 @@ export async function getDescendantsFromPage(
                                     leaf[0] || undefined,
                                 );
 
-                                if (wordHere.listings[0]) {
+                                const [relevantListing] = getRelevantListing(
+                                    wordHere.listings,
+                                    undefined,
+                                    listing,
+                                );
+
+                                if (relevantListing) {
                                     await unrollEtymology(
                                         recordSet,
-                                        wordHere.listings[0],
+                                        relevantListing,
                                         deepDescendantSearch,
                                         deepDescendantSearch,
                                         metListings,
+                                        false,
+                                        listing,
                                     );
                                 }
                             }),
