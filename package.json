@@ -1,0 +1,42 @@
+{
+  "name": "etumos",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.68",
+    "@types/react-cytoscapejs": "^1.2.5",
+    "@types/react-dom": "^18.2.18",
+    "cytoscape": "^3.2.19",
+    "firebase": "^10.7.1",
+    "normalize-diacritics": "^4.0.3",
+    "react": "^18.2.0",
+    "react-cytoscapejs": "^2.0.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "CHOKIDAR_USEPOLLING=true DISABLE_ESLINT_PLUGIN=true react-scripts start",
+    "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/cytoscape": "^3",
+    "@types/react": "^18",
+    "sass": "^1.69.7"
+  }
+}
