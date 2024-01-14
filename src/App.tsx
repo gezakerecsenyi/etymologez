@@ -8,6 +8,7 @@ import { db } from './index';
 import processRecords, { LanguageTable } from './processRecords';
 import { EtymologyRecord, relationshipCategories, SearchPing, WordListing } from './types';
 import { getListingIdentifier, getWiktionaryLabel } from './global/util';
+import github from './github.png';
 
 export interface NodeDefinitionData {
     id: string,
@@ -386,6 +387,14 @@ function App() {
                         </div>
                     )
                 }
+
+                <a
+                    className='github-button'
+                    href='https://github.com/gezakerecsenyi/etymologez'
+                    target='_blank'
+                >
+                    <img src={github} />
+                </a>
             </div>
 
             <div className='sidebar'>

@@ -198,52 +198,6 @@ export default function processRecords(
     pushTimingSegment();
 
     if (purgeFalseRoots) {
-        /*
-        const nodeKeys = Object.keys(words);
-        let markedNodes = new Set(
-            nodeKeys
-                .filter(e => !edgeData.some(t => t.data.target === e))
-                .filter(e => e !== searchingForEtymonsOf),
-        );
-        metadata.falseRoots = markedNodes.size;
-
-        let lastLength = 0;
-        while (markedNodes.size > lastLength) {
-            lastLength = markedNodes.size;
-
-            nodeKeys
-                .filter(e => !markedNodes.has(e))
-                .filter(
-                    n => {
-                        for (const m of markedNodes) {
-                            if (
-                                edgeData.some(
-                                    e => (e.data.source === n || e.data.target === n) &&
-                                        (e.data.source === m || e.data.target === m),
-                                )
-                            ) {
-                                return true;
-                            }
-                        }
-
-                        return false;
-                    },
-                )
-                .forEach(e => {
-                    markedNodes.add(e);
-                });
-        }
-
-        newNodes = newNodes.filter(e => !markedNodes.has(e[0]));
-        edgeData = edgeData.filter(e => {
-            for (const m of markedNodes) {
-                if (e.data.source === m || e.data.target === m) {
-                    return false;
-                }
-            }
-
-            return true;
-        });*/
         const nodesToProcess = new Set<string>([sourceId]);
         const processedNodes = new Set<string>([sourceId]);
         const edgeMap = new Map(edgeData.map(e => [e.data.id!, e]));

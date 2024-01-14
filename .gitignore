@@ -12,6 +12,8 @@ firebase.json
 *.log
 package-lock.json
 
+src/firebaseConfig.ts
+
 # testing
 /coverage
 
