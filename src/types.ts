@@ -1,5 +1,3 @@
-import cytoscape from 'cytoscape';
-
 export interface EtymologyListing {
     word: string;
     rawResult?: StringBreakdown[];
@@ -176,7 +174,9 @@ export const descendantRelationships = [
 export type RelationshipCategory = [
     'solid' | 'dotted' | 'dashed' | 'double',
     (DescendantRelationship | DerivationType)[],
-    cytoscape.Css.Edge,
+    {
+        'line-dash-pattern'?: number[],
+    },
 ];
 export const relationshipCategories: RelationshipCategory[] = [
     [

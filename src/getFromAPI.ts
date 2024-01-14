@@ -6,8 +6,8 @@ export async function callGetWordData(
     populateEtymologies: boolean = false,
 ): Promise<WordListing[]> {
     const res = await fetch(
-        // 'https://callgetworddata-jlw6wmvzma-uc.a.run.app',
-        'http://127.0.0.1:5001/etymologez/us-central1/callGetWordData',
+        'https://callgetworddata-jlw6wmvzma-uc.a.run.app',
+        // 'http://127.0.0.1:5001/etymologez/us-central1/callGetWordData',
         {
             method: 'POST',
             body: JSON.stringify({
@@ -28,8 +28,8 @@ export async function callUnrollEtymology(
     deepDescendantSearch: boolean = false,
 ): Promise<boolean> {
     await fetch(
-        'http://127.0.0.1:5001/etymologez/us-central1/callUnrollEtymology',
-        // 'https://callunrolletymology-jlw6wmvzma-uc.a.run.app',
+        // 'http://127.0.0.1:5001/etymologez/us-central1/callUnrollEtymology',
+        'https://callunrolletymology-jlw6wmvzma-uc.a.run.app',
         {
             method: 'POST',
             body: JSON.stringify({

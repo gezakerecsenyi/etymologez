@@ -23,7 +23,6 @@ export interface SearchMeta {
     nodesObtained: number,
     nodesDrawn: number,
     edgesDrawn: number,
-    falseRoots: number,
     clashes: number,
     directLength: number,
     timingSegments: number[],
@@ -380,7 +379,7 @@ function App() {
                                 cleaned
                             </p>
                             <p>
-                                Path: {metadata.directLength} long; {metadata.falseRoots} false roots purged
+                                Path: {metadata.directLength} long; {metadata.nodesObtained - metadata.nodesDrawn} purged
                             </p>
                             <p>
                                 Processed {metadata.derivationsObtained} records in {metadata.processingTimeMS || '<1'}ms ({metadata.timingSegments.join('/')})

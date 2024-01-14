@@ -28,7 +28,6 @@ export default function processRecords(
         directLength: 0,
         edgesDrawn: 0,
         clashes: 0,
-        falseRoots: 0,
         nodesDrawn: 0,
         nodesObtained: 0,
         processingTimeMS: 0,

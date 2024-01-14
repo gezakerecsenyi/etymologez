@@ -8,6 +8,7 @@ import {
     WordListing,
 } from '../../src/types';
 import { fetchWiktionaryData } from './cache';
+import { languageNameLookup } from './data';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
 import breakDownEtymologyDOM from './breakDownEtymologyDOM';
@@ -312,7 +313,7 @@ export function parseEtymologyWikitext(wikitext: string, offset?: number): Etymo
                         const word = parseWikitextWord(segments, posSegments[2] || posSegments[3]);
 
                         return {
-                            language,
+                            language: languageNameLookup.get(language) || language,
                             word,
                             relationship: relevantSections[i - 1].match(/^\s*(?:or|[\/,])\s*$/g) ?
                                 lastType :
@@ -344,7 +345,7 @@ export function parseEtymologyWikitext(wikitext: string, offset?: number): Etymo
                 const word = parseWikitextWord(segments, posSegments[3] || posSegments[4]);
 
                 return {
-                    language,
+                    language: languageNameLookup.get(language) || language,
                     word,
                     relationship: lastType,
                     statedGloss: posSegments[3] || segments.find(e => e.match(/(t|lit|gloss)=/g))?.split('=')[1],
