@@ -18,7 +18,8 @@ export default class CacheMap {
         firestore
             .collection('cache')
             .doc(cleanKey)
-            .set(value);
+            .set(value)
+            .catch(() => {});
         if (this.localChanges.size >= 1000) {
             this.localChanges = new Map(
                 Array.from(this.localChanges.entries()).slice(-600),

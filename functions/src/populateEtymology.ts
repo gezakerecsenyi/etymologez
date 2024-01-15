@@ -394,7 +394,7 @@ export default async function populateEtymology(
                 ] : undefined,
                 language: listing.language,
                 relationship: DerivationType.inflection,
-                fromWord: fromWord || undefined,
+                fromEtymologyListing: fromWord || undefined,
             };
         } else {
             return basicResult;
@@ -409,7 +409,7 @@ export default async function populateEtymology(
         listing.language,
     ) as SectionWikitext;
     if (wikitextResponse) {
-        gotListing = parseEtymologyWikitext(wikitextResponse['*']);
+        gotListing = parseEtymologyWikitext(wikitextResponse['*'], offset);
     }
 
     const responseHere = await fetchWiktionaryData(
@@ -434,7 +434,7 @@ export default async function populateEtymology(
             word: listing.word,
             rawResult: wholeStringSoFar,
             language: listing.language,
-            fromWord: gotListing,
+            fromEtymologyListing: gotListing,
             relationship: gotListing.relationship,
         };
     }

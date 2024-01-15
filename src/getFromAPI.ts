@@ -26,8 +26,8 @@ export async function callUnrollEtymology(
     listing: WordListing,
     getDescendants: boolean = false,
     deepDescendantSearch: boolean = false,
-): Promise<boolean> {
-    await fetch(
+) {
+    return fetch(
         // 'http://127.0.0.1:5001/etymologez/us-central1/callUnrollEtymology',
         'https://callunrolletymology-jlw6wmvzma-uc.a.run.app',
         {
@@ -40,6 +40,4 @@ export async function callUnrollEtymology(
             headers: new Headers({'Content-Type': 'application/json'})
         }
     );
-
-    return true;
 }

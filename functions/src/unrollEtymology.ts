@@ -95,10 +95,10 @@ export default async function unrollEtymology(
         if (newEtymology) {
             etymologyHere = newEtymology;
 
-            if (etymologyHere.fromWord) {
+            if (etymologyHere.fromEtymologyListing) {
                 const sources = await getWordData(
-                    etymologyHere.fromWord.word,
-                    etymologyHere.fromWord.language,
+                    etymologyHere.fromEtymologyListing.word,
+                    etymologyHere.fromEtymologyListing.language,
                 );
 
                 const [listingHere, isPriorityChoice] = getRelevantListing(
@@ -109,8 +109,8 @@ export default async function unrollEtymology(
 
                 if (listingHere) {
                     await addRecordHere(
-                        etymologyHere.fromWord.word,
-                        etymologyHere.fromWord.language,
+                        etymologyHere.fromEtymologyListing.word,
+                        etymologyHere.fromEtymologyListing.language,
                         listingHere,
                         etymologyHere.relationship,
                         isPriorityChoice,

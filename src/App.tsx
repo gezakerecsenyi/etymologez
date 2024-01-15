@@ -438,7 +438,7 @@ function App() {
                 </div>
 
                 {
-                    listings ? (
+                    listings && listings.length ? (
                             <div className='senses-bar'>
                                 <div className='controls'>
                                     {

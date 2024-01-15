@@ -92,7 +92,7 @@ export default class RecordSet {
             };
 
             if (correctedValue.fromWord?.etymology) {
-                correctedValue.fromWord.etymology.fromWord = undefined;
+                correctedValue.fromWord.etymology.fromEtymologyListing = undefined;
             }
 
             return correctedValue;

@@ -3,7 +3,7 @@ export interface EtymologyListing {
     rawResult?: StringBreakdown[];
     language: string;
     relationship: DerivationType;
-    fromWord?: EtymologyListing;
+    fromEtymologyListing?: EtymologyListing;
     statedGloss?: string;
 }
 
