@@ -204,6 +204,7 @@ function App() {
                         currentTimeout.current = null;
 
                         if (shouldUnsubscribe.current) {
+                            setExpectListingsAt(null);
                             unsubscribeFromAll();
                         }
                     }, 200);

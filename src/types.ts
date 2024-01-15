@@ -152,6 +152,7 @@ export interface EtymologyRecord {
     isComplete?: boolean;
     listingIdentifier?: string;
     isPriorityChoice: boolean;
+    createdBy: string;
 }
 
 export interface SearchPing {

@@ -67,6 +67,7 @@ export async function fetchDescendants(
                         language: getLanguage(line[1]),
                         relationship: DescendantRelationship.inherited,
                         isPriorityChoice: false,
+                        createdBy: 'fetch-descendants',
                     };
 
                     if (line[0] > 1) {

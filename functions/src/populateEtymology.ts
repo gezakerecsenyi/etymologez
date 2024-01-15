@@ -268,10 +268,19 @@ export function parseEtymologyString(etymologyEntries: StringBreakdown[], offset
         ) || language;
 
         if (currentOffset === offset || offset === undefined) {
+            let cleanWord = decodeURIComponent(
+                urlParse
+                    .pathname
+                    .replace(/^\/wiki\//g, '')
+            );
+            if (cleanWord.includes('Reconstruction:')) {
+                cleanWord = cleanWord.split('/')[1];
+            }
+
             if (urlParse.pathname.startsWith('/wiki/')) {
                 return {
                     language: language,
-                    word: urlParse.pathname.replace(/^\/wiki\//g, ''),
+                    word: cleanWord,
                     relationship,
                     statedGloss,
                 };
@@ -297,7 +306,7 @@ export function parseEtymologyString(etymologyEntries: StringBreakdown[], offset
 
 export function parseEtymologyWikitext(wikitext: string, offset?: number): EtymologyListing | null {
     const relevantSections = wikitext.split(
-        /{{((?:m(?:ention)?|uder|der(?:ived)?|inh(?:erited)?|bor(?:rowed)?)\|[^}]+)}}/g,
+        /{{((?:m(?:ention)?|uder|root|der(?:ived)?|inh(?:erited)?|bor(?:rowed)?)\|[^}]+)}}/g,
     );
 
     let listingIndex = 0;
@@ -314,6 +323,18 @@ export function parseEtymologyWikitext(wikitext: string, offset?: number): Etymo
             const posSegments = segments.filter(e => !e.includes('='));
 
             switch (posSegments[0]) {
+                case 'root':
+                    if (listingIndex === offset) {
+                        const language = posSegments[2];
+                        const word = parseWikitextWord(segments, posSegments[3]);
+
+                        return {
+                            language: languageNameLookup.get(language) || language,
+                            word,
+                            relationship: DerivationType.ultimately,
+                        };
+                    }
+                    break;
                 case 'm':
                 case 'mention':
                     if (listingIndex === offset && relevantSections[i - 1].match(/^\s*(?:or|[\/,])\s*$/g)) {

@@ -69,6 +69,7 @@ export default async function unrollEtymology(
             relationship,
             parentWordListing: listing,
             isPriorityChoice,
+            createdBy: 'parent-function',
         });
 
         if (getDescendants) {
