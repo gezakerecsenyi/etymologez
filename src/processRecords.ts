@@ -35,6 +35,7 @@ export default function processRecords(
     };
 
     let currentTime = new Date().getTime();
+
     function pushTimingSegment() {
         const newTime = new Date().getTime();
         metadata.timingSegments.push(newTime - currentTime);
@@ -45,8 +46,8 @@ export default function processRecords(
     const res = q.filter(e =>
         e.word?.trim()?.replace(/[%/_\-*]/g, '').length &&
         e.language &&
-        e.sourceWord?.trim()?.replace(/[%/_\-*]/g, '').length &&
-        e.sourceLanguage,
+        e.originWord?.trim()?.replace(/[%/_\-*]/g, '').length &&
+        e.originLanguage,
     );
     metadata.derivationsObtained = res.length;
 
@@ -66,12 +67,12 @@ export default function processRecords(
 
     for (const term of res) {
         const termId = getNodeId(term.word, term.language, term.definition);
-        const etymonId = getNodeId(term.sourceWord, term.sourceLanguage, term.sourceDefinition);
+        const etymonId = getNodeId(term.originWord, term.originLanguage, term.originDefinition);
 
         if (termId !== etymonId) {
             [
                 term.language,
-                term.sourceLanguage,
+                term.originLanguage,
             ].forEach(lang => {
                 if (!languages.hasOwnProperty(lang)) {
                     const backgroundColor = getRandomColor();
@@ -96,17 +97,18 @@ export default function processRecords(
                     id: termId,
                     label: term.word,
                     language: term.language,
-                    fromWord: {
-                        ...words[termId]?.data?.fromWord,
+                    parentWordListing: {
+                        ...words[termId]?.data?.parentWordListing,
                         ...(
-                            (term.isPriorityChoice && term.fromWord) ?
-                                term.fromWord :
-                                {
-                                    word: term.word,
-                                    language: term.language,
-                                    definition: term.definition,
-                                } as WordListing
+                            term.parentWordListing || {
+                                word: term.word,
+                                language: term.language,
+                                definition: term.definition,
+                            } as WordListing
                         ),
+                        ...(
+                            term.isPriorityChoice ? {} : words[termId]?.data?.parentWordListing
+                        )
                     },
                 },
             };
@@ -116,13 +118,13 @@ export default function processRecords(
                 data: {
                     ...words[etymonId]?.data || {},
                     id: etymonId,
-                    label: term.sourceWord,
-                    language: term.sourceLanguage,
+                    label: term.originWord,
+                    language: term.originLanguage,
                     isPriority: term.isPriorityChoice,
-                    fromWord: words[etymonId]?.data?.fromWord || {
-                        word: term.sourceWord,
-                        language: term.sourceLanguage,
-                        definition: term.sourceDefinition,
+                    parentWordListing: words[etymonId]?.data?.parentWordListing || {
+                        word: term.originWord,
+                        language: term.originLanguage,
+                        definition: term.originDefinition,
                     } as WordListing,
                 },
             };
@@ -152,8 +154,8 @@ export default function processRecords(
             ...edge,
             data: {
                 ...edge.data,
-                category: relationshipCategories.find(e => e[1].includes(edge.data.relationship))![0]
-            }
+                category: relationshipCategories.find(e => e[1].includes(edge.data.relationship))![0],
+            },
         } as ElementDefinition));
 
     let searchingForEtymonsOf = sourceId;
@@ -199,7 +201,10 @@ export default function processRecords(
     if (purgeFalseRoots) {
         const nodesToProcess = new Set<string>([sourceId]);
         const processedNodes = new Set<string>([sourceId]);
-        const edgeMap = new Map(edgeData.map(e => [e.data.id!, e]));
+        const edgeMap = new Map(edgeData.map(e => [
+            e.data.id!,
+            e,
+        ]));
 
         while (nodesToProcess.size) {
             const nodesHere = Array.from(nodesToProcess);

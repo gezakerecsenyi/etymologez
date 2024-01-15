@@ -1,8 +1,8 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { onRequest } from 'firebase-functions/v2/https';
-import { SearchPing, WordListing } from '../../src/types';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { getListingIdentifier } from '../../src/global/util';
+import { SearchPing, WordListing } from '../../src/types';
 import { usingCache } from './cache';
 import getWordData from './getWordData';
 import populateEtymology from './populateEtymology';
@@ -15,108 +15,111 @@ firestore.settings({
     ignoreUndefinedProperties: true,
 });
 
-export const callGetWordData = onRequest(
+export interface GetWordDataProps {
+    word: string,
+    language: string,
+    populateEtymologies: boolean,
+}
+
+export const getWordDataCallable = onCall<GetWordDataProps>(
     {
-        cors: true,
+        region: 'us-central1',
         timeoutSeconds: 60 * 60,
         memory: '16GiB',
         cpu: 4,
+        cors: true,
     },
-    (request, response) => {
-        usingCache(async () => {
-            const data = await getWordData(
-                request.body.word,
-                request.body.language,
-            );
+    async (request) => {
+        try {
+            return await usingCache(async () => {
+                const data = await getWordData(
+                    request.data.word,
+                    request.data.language,
+                );
 
-            if (request.body.populateEtymologies) {
-                return (
-                    await Promise.all(data.listings.map(e => populateEtymology(e)))
-                ).map((e, i) => ({
-                    ...data.listings[i],
-                    etymology: e,
-                }));
-            }
+                if (request.data.populateEtymologies) {
+                    return (
+                        await Promise.all(data.listings.map(e => populateEtymology(e)))
+                    ).map((e, i) => ({
+                        ...data.listings[i],
+                        etymology: e,
+                    }));
+                }
 
-            return data.listings;
-        }).then(res => {
-            response.send(JSON.stringify(res));
-        });
+                return data.listings;
+            });
+        } catch (e) {
+            throw new HttpsError("internal", '');
+        }
     },
 );
 
-export const callUnrollEtymology = onRequest(
+export interface UnrollEtymologyProps {
+    listing: WordListing,
+    getDescendants: boolean,
+    deepDescendantSearch: boolean,
+}
+export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
     {
-        cors: true,
+        region: 'us-central1',
         timeoutSeconds: 60 * 60,
         memory: '16GiB',
         cpu: 4,
+        cors: true,
     },
-    (request, response) => {
-        const body = request.body as {
-            listing: WordListing,
-            getDescendants: boolean,
-            deepDescendantSearch: boolean,
-        };
+    async (request) => {
+        try {
+            const body = request.data;
 
-        const identifier = getListingIdentifier(body.listing, body.getDescendants, body.deepDescendantSearch);
+            const identifier = getListingIdentifier(body.listing, body.getDescendants, body.deepDescendantSearch);
 
-        firestore
-            .collection('searchPings')
-            .doc(identifier)
-            .get()
-            .then(doc => {
-                const data = doc.data() as SearchPing;
-                if (
-                    doc.exists &&
-                    (data.isFinished || new Date().getTime() - data.lastUpdated < 2 * 60 * 1000)
-                ) {
-                    response.sendStatus(210);
-                } else {
-                    const runQuery = () => {
-                        const recordSet = new RecordSet(identifier);
-                        usingCache(() => unrollEtymology(
-                            recordSet,
-                            body.listing,
-                            body.getDescendants,
-                            body.deepDescendantSearch,
-                        )).then(async () => {
-                            recordSet.commit();
-                            await recordSet.awaitAll();
+            let doc = await firestore
+                .collection('searchPings')
+                .doc(identifier)
+                .get();
 
-                            await doc
-                                .ref
-                                .update({
-                                    isFinished: true,
-                                });
+            const data = doc.data() as SearchPing;
+            if (
+                doc.exists &&
+                (data.isFinished || new Date().getTime() - data.lastUpdated < 2 * 60 * 1000)
+            ) {
+                return true;
+            } else {
+                if (doc.exists) {
+                    await doc
+                        .ref
+                        .delete();
 
-                            response.sendStatus(200);
-                        });
-                    };
-
-                    if (doc.exists) {
-                        doc
-                            .ref
-                            .delete()
-                            .then(() => {
-                                firestore
-                                    .collection('records')
-                                    .where('searchIdentifier', '==', identifier)
-                                    .get()
-                                    .then((e) => {
-                                        Promise
-                                            .all(
-                                                e.docs.map(e => e.ref.delete()),
-                                            )
-                                            .then(() => {
-                                                runQuery();
-                                            });
-                                    });
-                            });
-                    } else {
-                        runQuery();
-                    }
+                    const existingDocs = await firestore
+                        .collection('records')
+                        .where('searchIdentifier', '==', identifier)
+                        .get();
+                    await Promise.all(
+                        existingDocs.docs.map(e => e.ref.delete()),
+                    );
                 }
-            });
+
+                const recordSet = new RecordSet(identifier);
+                await usingCache(() => unrollEtymology(
+                    recordSet,
+                    body.listing,
+                    body.getDescendants,
+                    body.deepDescendantSearch,
+                ));
+
+                recordSet.commit();
+                await recordSet.awaitAll();
+
+                await doc
+                    .ref
+                    .update({
+                        isFinished: true,
+                    });
+
+                return true;
+            }
+        } catch (e) {
+            throw new HttpsError("internal", '');
+        }
     },
 );

@@ -61,8 +61,8 @@ export async function fetchDescendants(
                         .map(e => e![1])[0];
 
                     let recordHere: EtymologyRecord = {
-                        sourceWord: listing.word,
-                        sourceLanguage: listing.language,
+                        originWord: listing.word,
+                        originLanguage: listing.language,
                         word: getWord(line[1]),
                         language: getLanguage(line[1]),
                         relationship: DescendantRelationship.inherited,
@@ -76,8 +76,8 @@ export async function fetchDescendants(
                             .find(e => e[0] === line[0] - 1);
 
                         if (lastHigher) {
-                            recordHere.sourceWord = getWord(lastHigher[1]);
-                            recordHere.sourceLanguage = getLanguage(lastHigher[1]);
+                            recordHere.originWord = getWord(lastHigher[1]);
+                            recordHere.originLanguage = getLanguage(lastHigher[1]);
                         }
                     }
 
@@ -106,8 +106,8 @@ export async function fetchDescendants(
 
                     if (relevantListing) {
                         recordHere.isPriorityChoice = isPriorityChoice;
-                        recordHere.fromWord = relevantListing;
-                        recordHere.fromWord.etymology = await populateEtymology(relevantListing) || undefined;
+                        recordHere.parentWordListing = relevantListing;
+                        recordHere.parentWordListing.etymology = await populateEtymology(relevantListing) || undefined;
                     }
 
                     await recordSet.add(recordHere);

@@ -2,7 +2,7 @@ export interface EtymologyListing {
     word: string;
     rawResult?: StringBreakdown[];
     language: string;
-    relationship: DerivationType;
+    relationship?: DerivationType;
     fromEtymologyListing?: EtymologyListing;
     statedGloss?: string;
 }
@@ -100,6 +100,7 @@ export enum DerivationType {
     variant = 'variant of',
     borrowingOf = 'borrowing of',
     borrowingFrom = 'borrowing from',
+    relatedTo = 'related to',
     formOf = 'form of',
     from = 'from',
     via = 'via',
@@ -139,14 +140,14 @@ export interface CategoryDump {
 
 export interface EtymologyRecord {
     id?: string;
+    parentWordListing?: WordListing;
     word: string;
     language: string;
     definition?: DefinitionSpec[];
-    sourceWord: string;
-    sourceLanguage: string;
-    sourceDefinition?: DefinitionSpec[];
+    originWord: string;
+    originLanguage: string;
+    originDefinition?: DefinitionSpec[];
     relationship?: DerivationType | DescendantRelationship;
-    fromWord?: WordListing;
     searchIdentifier?: string;
     isComplete?: boolean;
     listingIdentifier?: string;

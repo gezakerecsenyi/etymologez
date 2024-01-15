@@ -1,3 +1,6 @@
+import { httpsCallable } from 'firebase/functions';
+import { GetWordDataProps, UnrollEtymologyProps } from '../functions/src';
+import { functions } from './index';
 import { WordListing } from './types';
 
 export async function callGetWordData(
@@ -5,39 +8,41 @@ export async function callGetWordData(
     language: string = '',
     populateEtymologies: boolean = false,
 ): Promise<WordListing[]> {
-    const res = await fetch(
-        'https://callgetworddata-jlw6wmvzma-uc.a.run.app',
-        // 'http://127.0.0.1:5001/etymologez/us-central1/callGetWordData',
+    const getWordData = httpsCallable<GetWordDataProps, WordListing[]>(
+        functions,
+        'getWordDataCallable',
         {
-            method: 'POST',
-            body: JSON.stringify({
-                word,
-                language,
-                populateEtymologies,
-            }),
-            headers: new Headers({'Content-Type': 'application/json'})
+            timeout: 60 * 60 * 1000,
+        }
+    );
+    const res = await getWordData(
+        {
+            word,
+            language,
+            populateEtymologies,
         }
     );
 
-    return await res.json() as WordListing[];
+    return res.data;
 }
 
-export async function callUnrollEtymology(
+export function callUnrollEtymology(
     listing: WordListing,
     getDescendants: boolean = false,
     deepDescendantSearch: boolean = false,
 ) {
-    return fetch(
-        // 'http://127.0.0.1:5001/etymologez/us-central1/callUnrollEtymology',
-        'https://callunrolletymology-jlw6wmvzma-uc.a.run.app',
+    const unrollEtymology = httpsCallable<UnrollEtymologyProps, boolean>(
+        functions,
+        'unrollEtymologyCallable',
         {
-            method: 'POST',
-            body: JSON.stringify({
-                listing,
-                getDescendants,
-                deepDescendantSearch,
-            }),
-            headers: new Headers({'Content-Type': 'application/json'})
+            timeout: 60 * 60 * 1000,
         }
     );
+    return unrollEtymology(
+        {
+            listing,
+            getDescendants,
+            deepDescendantSearch,
+        }
+    )
 }

@@ -14,7 +14,7 @@ export interface NodeDefinitionData {
     id: string,
     label: string,
     language: string,
-    fromWord: WordListing,
+    parentWordListing: WordListing,
 }
 
 export interface SearchMeta {
@@ -289,8 +289,8 @@ function App() {
                     setOnlyEnglish(false);
                     setListingIndex(0);
 
-                    if (data.fromWord && data.fromWord.word) {
-                        setListings([data.fromWord]);
+                    if (data.parentWordListing && data.parentWordListing.word) {
+                        setListings([data.parentWordListing]);
                     } else {
                         setListings([
                             {

@@ -86,13 +86,13 @@ export default class RecordSet {
             const correctedValue = {
                 ...Object.assign({}, t),
                 word: decodeURIComponent(t.word).replace(/[a-zA-Z_\-:]+\//g, ''),
-                sourceWord: decodeURIComponent(t.sourceWord).replace(/[a-zA-Z_\-:]+\//g, ''),
+                sourceWord: decodeURIComponent(t.originWord).replace(/[a-zA-Z_\-:]+\//g, ''),
                 searchIdentifier: this.searchIdentifier,
                 id: v4(),
             };
 
-            if (correctedValue.fromWord?.etymology) {
-                correctedValue.fromWord.etymology.fromEtymologyListing = undefined;
+            if (correctedValue.parentWordListing?.etymology) {
+                correctedValue.parentWordListing.etymology.fromEtymologyListing = undefined;
             }
 
             return correctedValue;

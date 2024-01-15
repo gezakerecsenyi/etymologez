@@ -7,11 +7,11 @@ import {
     StringBreakdown,
     WordListing,
 } from '../../src/types';
+import breakDownEtymologyDOM from './breakDownEtymologyDOM';
 import { fetchWiktionaryData } from './cache';
 import { languageNameLookup } from './data';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
-import breakDownEtymologyDOM from './breakDownEtymologyDOM';
 import { parseWikitextWord } from './util';
 
 const derivationTypes = [
@@ -22,6 +22,7 @@ const derivationTypes = [
     DerivationType.variant,
     DerivationType.borrowingOf,
     DerivationType.borrowingFrom,
+    DerivationType.relatedTo,
     DerivationType.formOf,
     DerivationType.from,
     DerivationType.via,
@@ -35,6 +36,9 @@ const derivationTypes = [
 const derivationTypesRegexp = derivationTypes
     .map(e => `[${e[0].toLowerCase()}${e[0].toUpperCase()}]${e.slice(1).toLowerCase()}`)
     .join('|');
+const getRelationshipRegexp = (captureNeg: boolean, captureType: boolean) => `(${
+    captureNeg ? '' : '?<!'
+}(?:[Nn]ot |[Uu]n)(?:[a-z]+ )?)(${captureType ? '' : '?:'}${derivationTypesRegexp})(?: the)?(?: word)?`;
 
 export function parseEtymologyString(etymologyEntries: StringBreakdown[], offset?: number): EtymologyListing | null {
     const isBadLink = (e: StringBreakdown) => {
@@ -195,7 +199,7 @@ export function parseEtymologyString(etymologyEntries: StringBreakdown[], offset
             } else {
                 currentMatch = getLinksFollowing(
                     searchSpace,
-                    `(${derivationTypesRegexp})(?: the)?((?: [A-ZÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ-]*){0,3})`,
+                    `${getRelationshipRegexp(false, true)}((?: [A-ZÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ-]*){0,3})`,
                 )[0];
 
                 if (!currentMatch) {
@@ -293,7 +297,7 @@ export function parseEtymologyString(etymologyEntries: StringBreakdown[], offset
 
 export function parseEtymologyWikitext(wikitext: string, offset?: number): EtymologyListing | null {
     const relevantSections = wikitext.split(
-        /{{((?:m(?:ention)?|uder|der(?:ived)?|inh(?:erited)?|bor(?:rowed)?)\|[^}]+)}}/g
+        /{{((?:m(?:ention)?|uder|der(?:ived)?|inh(?:erited)?|bor(?:rowed)?)\|[^}]+)}}/g,
     );
 
     let listingIndex = 0;
@@ -302,22 +306,24 @@ export function parseEtymologyWikitext(wikitext: string, offset?: number): Etymo
         const section = relevantSections[i];
 
         if (i % 2 === 1) {
+            if (relevantSections[i - 1]?.match(new RegExp(`${getRelationshipRegexp(true, false)}\\s*$`))) {
+                continue;
+            }
+
             const segments = section.split('|');
             const posSegments = segments.filter(e => !e.includes('='));
 
             switch (posSegments[0]) {
                 case 'm':
                 case 'mention':
-                    if (listingIndex === offset) {
+                    if (listingIndex === offset && relevantSections[i - 1].match(/^\s*(?:or|[\/,])\s*$/g)) {
                         const language = posSegments[1];
                         const word = parseWikitextWord(segments, posSegments[2] || posSegments[3]);
 
                         return {
                             language: languageNameLookup.get(language) || language,
                             word,
-                            relationship: relevantSections[i - 1].match(/^\s*(?:or|[\/,])\s*$/g) ?
-                                lastType :
-                                DerivationType.from,
+                            relationship: lastType,
                             statedGloss: posSegments[4] || segments.find(e => e.match(/(t|lit)=/g))?.split('=')[1],
                         };
                     }
@@ -382,7 +388,7 @@ export default async function populateEtymology(
                 listing.etymology,
                 listing,
             );
-            const fromWord = await populateEtymology(relevantListing!);
+            const parentWordListing = await populateEtymology(relevantListing!);
 
             return {
                 word: listing.word,
@@ -394,7 +400,7 @@ export default async function populateEtymology(
                 ] : undefined,
                 language: listing.language,
                 relationship: DerivationType.inflection,
-                fromEtymologyListing: fromWord || undefined,
+                fromEtymologyListing: parentWordListing || undefined,
             };
         } else {
             return basicResult;
@@ -434,10 +440,17 @@ export default async function populateEtymology(
             word: listing.word,
             rawResult: wholeStringSoFar,
             language: listing.language,
-            fromEtymologyListing: gotListing,
+            fromEtymologyListing: {
+                ...gotListing,
+                language: gotListing.language || listing.language,
+            },
             relationship: gotListing.relationship,
         };
     }
 
-    return null;
+    return {
+        word: listing.word,
+        rawResult: wholeStringSoFar,
+        language: listing.language,
+    };
 }

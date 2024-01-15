@@ -63,11 +63,11 @@ export default async function unrollEtymology(
             word: listing.word,
             definition: listing.definition!,
             language: listing.language,
-            sourceWord,
-            sourceDefinition: sourceListing.definition!,
-            sourceLanguage,
+            originWord: sourceWord,
+            originDefinition: sourceListing.definition!,
+            originLanguage: sourceLanguage,
             relationship,
-            fromWord: listing,
+            parentWordListing: listing,
             isPriorityChoice,
         });
 
@@ -112,7 +112,7 @@ export default async function unrollEtymology(
                         etymologyHere.fromEtymologyListing.word,
                         etymologyHere.fromEtymologyListing.language,
                         listingHere,
-                        etymologyHere.relationship,
+                        etymologyHere.relationship!,
                         isPriorityChoice,
                     );
                     break;
