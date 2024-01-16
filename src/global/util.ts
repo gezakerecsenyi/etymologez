@@ -1,13 +1,18 @@
 import { WordListing } from '../types';
 import { diacritics } from './data';
 
+export function getListingCacheKey(listing: WordListing) {
+    if (!listing) {
+        return '0';
+    }
+
+    return `${listing.word}_${listing.language.slice(0, 3)}_${listing.definition?.[0]?.text.slice(0, 5) || ''}`
+}
+
 export function getListingIdentifier(listing: WordListing, getDescendants: boolean, deepDescendantSearch: boolean) {
     return `${getDescendants ? 1 : 0}${deepDescendantSearch ? 1 : 0}_${
         encodeURIComponent(
-            `${listing.word}_${listing.language.slice(0, 3)}_${listing.definition?.[0].text.slice(
-                0,
-                5
-            ) || ''}${listing.definition?.length}`
+            `${getListingCacheKey(listing)}${listing?.definition?.length}`
         )
     }`;
 }

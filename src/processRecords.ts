@@ -13,6 +13,11 @@ export interface RecordsData {
     metadata: SearchMeta;
 }
 
+interface ExtendedEtymologyRecord extends EtymologyRecord {
+    parentId?: string;
+    originId?: string;
+}
+
 export default function processRecords(
     q: EtymologyRecord[],
     listing: WordListing,
@@ -44,12 +49,55 @@ export default function processRecords(
     }
 
     const res = q.filter(e =>
-        e.word?.trim()?.replace(/[%/_\-*]/g, '').length &&
-        e.language &&
+        e.parentWord?.trim()?.replace(/[%/_\-*]/g, '').length &&
+        e.parentLanguage &&
         e.originWord?.trim()?.replace(/[%/_\-*]/g, '').length &&
         e.originLanguage,
-    );
+    ) as ExtendedEtymologyRecord[];
     metadata.derivationsObtained = res.length;
+
+    pushTimingSegment();
+
+    function getNodeId(word: string, language: string, definition?: DefinitionSpec[] | undefined) {
+        return `${word}__${language}__${definition?.[0]?.text || '..'}`;
+    }
+
+    function getEdgeId(startId: string, endId: string) {
+        return `${startId}..-->..${endId}`;
+    }
+
+    for (const word of res) {
+        word.parentId = getNodeId(word.parentWord, word.parentLanguage);
+        word.originId = getNodeId(word.originWord, word.originLanguage);
+    }
+
+    for (const word of res) {
+        if (!word.parentDefinition && word.parentWordListing?.definition) {
+            word.parentDefinition = word.parentWordListing.definition;
+        }
+
+        for (const e of res) {
+            if (word.originDefinition && word.parentDefinition) {
+                break;
+            }
+
+            if (!word.parentDefinition) {
+                if (e.originId === word.parentId && e.originDefinition) {
+                    word.parentDefinition = e.originDefinition;
+                } else if (e.parentId === word.parentId && e.parentDefinition) {
+                    word.parentDefinition = e.parentDefinition;
+                }
+            }
+
+            if (!word.originDefinition) {
+                if (e.originId === word.originId && e.originDefinition) {
+                    word.originDefinition = e.originDefinition;
+                } else if (e.parentId === word.originId && e.parentDefinition) {
+                    word.originDefinition = e.parentDefinition;
+                }
+            }
+        }
+    }
 
     pushTimingSegment();
 
@@ -57,21 +105,13 @@ export default function processRecords(
     let edges = {} as { [key: string]: ElementDefinition };
     const languages = languageTable || {} as { [key: string]: StylesheetStyle };
 
-    function getNodeId(word: string, language: string, definition: DefinitionSpec[] | undefined) {
-        return `${word}__${language}`;
-    }
-
-    function getEdgeId(startId: string, endId: string) {
-        return `${startId}..-->..${endId}`;
-    }
-
     for (const term of res) {
-        const termId = getNodeId(term.word, term.language, term.definition);
+        const termId = getNodeId(term.parentWord, term.parentLanguage, term.parentDefinition);
         const etymonId = getNodeId(term.originWord, term.originLanguage, term.originDefinition);
 
         if (termId !== etymonId) {
             [
-                term.language,
+                term.parentLanguage,
                 term.originLanguage,
             ].forEach(lang => {
                 if (!languages.hasOwnProperty(lang)) {
@@ -95,20 +135,17 @@ export default function processRecords(
                 data: {
                     ...words[termId]?.data || {},
                     id: termId,
-                    label: term.word,
-                    language: term.language,
+                    label: term.parentWord,
+                    language: term.parentLanguage,
                     parentWordListing: {
+                        word: term.parentWord,
+                        language: term.parentLanguage,
+                        definition: term.parentDefinition || term.parentWordListing?.definition,
                         ...words[termId]?.data?.parentWordListing,
-                        ...(
-                            term.parentWordListing || {
-                                word: term.word,
-                                language: term.language,
-                                definition: term.definition,
-                            } as WordListing
-                        ),
+                        ...(term.parentWordListing),
                         ...(
                             term.isPriorityChoice ? {} : words[termId]?.data?.parentWordListing
-                        )
+                        ),
                     },
                 },
             };
@@ -120,7 +157,6 @@ export default function processRecords(
                     id: etymonId,
                     label: term.originWord,
                     language: term.originLanguage,
-                    isPriority: term.isPriorityChoice,
                     parentWordListing: words[etymonId]?.data?.parentWordListing || {
                         word: term.originWord,
                         language: term.originLanguage,
@@ -144,8 +180,6 @@ export default function processRecords(
     }
 
     pushTimingSegment();
-
-    metadata.nodesObtained = Object.keys(words).length;
 
     const sourceId = getNodeId(listing.word, listing.language, listing.definition);
     let edgeData = Object
@@ -179,6 +213,8 @@ export default function processRecords(
     pushTimingSegment();
 
     let newNodes = Object.entries(words);
+    metadata.nodesObtained = newNodes.length;
+
     for (const [id] of newNodes) {
         const incomingEdges = edgeData.filter(e => e.data.target === id);
         if (incomingEdges.length > 1) {

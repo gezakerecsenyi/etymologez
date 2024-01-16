@@ -24,7 +24,7 @@ export function getRelevantListing(
 
     const scores = Array(listingOptions.length).fill(0) as number[];
     const usingGloss = (gloss || etymology?.statedGloss)?.split(', ') || [
-        parentListing?.word,
+        ...(parentListing?.language && parentListing.language !== 'English' ? [] : [parentListing?.word]),
         parentListing?.definition?.[0].text,
     ].filter(e => e) as string[];
     for (const gloss of usingGloss) {

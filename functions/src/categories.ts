@@ -96,7 +96,7 @@ export async function getDescendantsFromPage(
                     }
                     const leaves = await flattenCategoryLeaves(categoryUrl);
 
-                    for (const chunk of chunks(leaves, 80)) {
+                    for (const chunk of chunks(leaves, 100)) {
                         await Promise.all(
                             chunk.map(async leaf => {
                                 const wordHere = await getWordData(
@@ -117,7 +117,6 @@ export async function getDescendantsFromPage(
                                         deepDescendantSearch,
                                         deepDescendantSearch,
                                         metListings,
-                                        false,
                                         listing,
                                     );
                                 }

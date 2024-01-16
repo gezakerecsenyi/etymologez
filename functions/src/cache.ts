@@ -1,6 +1,6 @@
 import { JSDOM } from 'jsdom';
-import { AllWiktionaryData, SectionHTML, SectionsData, SectionWikitext } from '../../src/types';
 import { getWiktionaryLabel } from '../../src/global/util';
+import { AllWiktionaryData, SectionHTML, SectionsData, SectionWikitext } from '../../src/types';
 import CacheMap from './CacheMap';
 import { getWiktionaryUrl } from './util';
 
@@ -8,7 +8,7 @@ let localCache = new CacheMap();
 let inBackoff: number = 0;
 
 export async function fetchUrl(url: string): Promise<object> {
-    const cacheRes = await localCache.get(url);
+    /*const cacheRes = await localCache.get(url);
     if (cacheRes) {
         return cacheRes;
     } else {
@@ -38,6 +38,36 @@ export async function fetchUrl(url: string): Promise<object> {
         } catch (e) {
             return {};
         }
+    }*/
+
+    let req: Response | undefined = undefined;
+    let attempts = 0;
+    while (!req) {
+        attempts++;
+        if (attempts > 100) {
+            throw `Timeout getting ${url}`;
+        }
+
+        let currentTime = new Date().getTime();
+        while (inBackoff > currentTime) {
+            await new Promise(resolve => {
+                setTimeout(resolve, currentTime - inBackoff! + Math.random() * 2000);
+            });
+
+            currentTime = new Date().getTime();
+        }
+
+        try {
+            req = await fetch(url);
+        } catch (e) {
+            inBackoff = new Date().getTime() + 2000;
+        }
+    }
+
+    try {
+        return await req!.json();
+    } catch (e) {
+        return {};
     }
 }
 
@@ -69,7 +99,10 @@ export async function fetchWiktionaryData(
         languageHint,
     );
 
-    const allData = await localCache.get(cacheKey) as AllWiktionaryData || await fetchAllWiktionaryData(word, languageHint);
+    const allData = await localCache.get(cacheKey) as AllWiktionaryData || await fetchAllWiktionaryData(
+        word,
+        languageHint,
+    );
     if (allData && allData.parse) {
         localCache.set(cacheKey, allData);
 

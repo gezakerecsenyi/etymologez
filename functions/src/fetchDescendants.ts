@@ -1,3 +1,4 @@
+import { getListingCacheKey } from '../../src/global/util';
 import { DescendantRelationship, EtymologyRecord, SectionWikitext, WordListing } from '../../src/types';
 import { fetchWiktionaryData } from './cache';
 import { getDescendantsFromPage } from './categories';
@@ -63,8 +64,9 @@ export async function fetchDescendants(
                     let recordHere: EtymologyRecord = {
                         originWord: listing.word,
                         originLanguage: listing.language,
-                        word: getWord(line[1]),
-                        language: getLanguage(line[1]),
+                        originDefinition: listing.definition,
+                        parentWord: getWord(line[1]),
+                        parentLanguage: getLanguage(line[1]),
                         relationship: DescendantRelationship.inherited,
                         isPriorityChoice: false,
                         createdBy: 'fetch-descendants',
@@ -94,8 +96,8 @@ export async function fetchDescendants(
                     }
 
                     const wordData = await getWordData(
-                        recordHere.word,
-                        recordHere.language,
+                        recordHere.parentWord,
+                        recordHere.parentLanguage,
                     );
 
                     const [relevantListing, isPriorityChoice] = getRelevantListing(
@@ -109,23 +111,30 @@ export async function fetchDescendants(
                         recordHere.isPriorityChoice = isPriorityChoice;
                         recordHere.parentWordListing = relevantListing;
                         recordHere.parentWordListing.etymology = await populateEtymology(relevantListing) || undefined;
+
+                        recordHere.parentDefinition = relevantListing.definition;
                     }
 
-                    await recordSet.add(recordHere);
+                    recordSet.add(recordHere);
 
                     if (relevantListing && deepDescendantSearch) {
-                        await getDescendantsFromPage(
-                            recordSet,
-                            relevantListing,
-                            metListings,
-                            deepDescendantSearch,
-                        );
-                        await fetchDescendants(
-                            recordSet,
-                            relevantListing,
-                            metListings,
-                            deepDescendantSearch
-                        );
+                        const listingId = getListingCacheKey(relevantListing);
+                        if (!metListings.has(listingId)) {
+                            await getDescendantsFromPage(
+                                recordSet,
+                                relevantListing,
+                                metListings,
+                                deepDescendantSearch,
+                            );
+                            await fetchDescendants(
+                                recordSet,
+                                relevantListing,
+                                metListings,
+                                deepDescendantSearch
+                            );
+
+                            metListings.add(listingId);
+                        }
                     }
                 }
             }),

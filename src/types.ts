@@ -141,9 +141,9 @@ export interface CategoryDump {
 export interface EtymologyRecord {
     id?: string;
     parentWordListing?: WordListing;
-    word: string;
-    language: string;
-    definition?: DefinitionSpec[];
+    parentWord: string;
+    parentLanguage: string;
+    parentDefinition?: DefinitionSpec[];
     originWord: string;
     originLanguage: string;
     originDefinition?: DefinitionSpec[];
@@ -220,6 +220,7 @@ export const relationshipCategories: RelationshipCategory[] = [
             DerivationType.compound,
             DerivationType.variant,
             DerivationType.clipping,
+            DerivationType.relatedTo,
         ],
         {
             'line-dash-pattern': [6, 3],

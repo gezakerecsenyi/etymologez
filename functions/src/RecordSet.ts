@@ -1,17 +1,21 @@
-import { v4 } from 'uuid';
+import hash from 'object-hash';
 import { EtymologyRecord, SearchPing } from '../../src/types';
 import { firestore } from './index';
 
 export default class RecordSet {
+    private static maxSize = 40;
     public searchIdentifier: string;
     private localChanges: Map<string, EtymologyRecord>;
-    private openPromises: Promise<object>[];
-    private static maxSize = 200;
+    private openPromises: Promise<any>[];
+    private currentRecordCount: number;
+    private inInitialPhase: boolean;
 
     constructor(searchIdentifier: string) {
         this.searchIdentifier = searchIdentifier;
         this.localChanges = new Map();
         this.openPromises = [];
+        this.currentRecordCount = 0;
+        this.inInitialPhase = true;
 
         this.updatePing();
     }
@@ -39,7 +43,7 @@ export default class RecordSet {
                 .set({
                     id: this.searchIdentifier,
                     lastUpdated: new Date().getTime(),
-                } as SearchPing)
+                } as SearchPing),
         );
     }
 
@@ -53,7 +57,7 @@ export default class RecordSet {
                 firestore
                     .collection('records')
                     .doc(k)
-                    .set(v),
+                    .set(v, { merge: true }),
             );
         });
 
@@ -66,30 +70,40 @@ export default class RecordSet {
             this.localChanges.set(
                 id,
                 {
-                    ...this.localChanges.get('id')!,
+                    ...this.localChanges.get(id)!,
                     ...data,
                 },
             );
         } else {
-            firestore
-                .collection('records')
-                .doc(id)
-                .update(data)
-                .catch(() => {
-                    console.log('attempted to update non-existant??');
-                });
+            this.openPromises.push(
+                firestore
+                    .collection('records')
+                    .doc(id)
+                    .set(data, { merge: true })
+                    .catch(() => {
+                        console.log('attempted to update non-existant??');
+                    }),
+            );
         }
     }
 
-    async add(...e: EtymologyRecord[]) {
+    add(...e: EtymologyRecord[]) {
         const corrected: EtymologyRecord[] = e.map(t => {
             const correctedValue = {
                 ...Object.assign({}, t),
-                word: decodeURIComponent(t.word).replace(/[a-zA-Z_\-:]+\//g, ''),
+                word: decodeURIComponent(t.parentWord).replace(/[a-zA-Z_\-:]+\//g, ''),
                 sourceWord: decodeURIComponent(t.originWord).replace(/[a-zA-Z_\-:]+\//g, ''),
                 searchIdentifier: this.searchIdentifier,
-                id: v4(),
             };
+
+            correctedValue.id = encodeURIComponent(hash(correctedValue, {
+                algorithm: 'sha1',
+                unorderedObjects: false,
+                unorderedSets: false,
+                unorderedArrays: false,
+                ignoreUnknown: true,
+                encoding: 'base64',
+            }));
 
             if (correctedValue.parentWordListing?.etymology) {
                 correctedValue.parentWordListing.etymology.fromEtymologyListing = undefined;
@@ -99,11 +113,18 @@ export default class RecordSet {
         });
 
         corrected.forEach(e => {
+            this.currentRecordCount++;
             this.localChanges.set(e.id!, e);
         });
 
-        if (this.localChanges.size % RecordSet.maxSize === 10) {
+        if (this.currentRecordCount > RecordSet.maxSize || (this.inInitialPhase && this.currentRecordCount > 10)) {
             this.commit();
+
+            if (this.inInitialPhase) {
+                this.inInitialPhase = false;
+            } else {
+                this.currentRecordCount = 0;
+            }
         }
 
         return corrected;

@@ -309,6 +309,8 @@ export function parseEtymologyWikitext(wikitext: string, offset?: number): Etymo
         /{{((?:m(?:ention)?|uder|root|der(?:ived)?|inh(?:erited)?|bor(?:rowed)?)\|[^}]+)}}/g,
     );
 
+    let gotAsRoot: EtymologyListing | null = null;
+
     let listingIndex = 0;
     let lastType = DerivationType.from;
     for (let i = 0; i < relevantSections.length; i++) {
@@ -324,27 +326,32 @@ export function parseEtymologyWikitext(wikitext: string, offset?: number): Etymo
 
             switch (posSegments[0]) {
                 case 'root':
-                    if (listingIndex === offset) {
-                        const language = posSegments[2];
-                        const word = parseWikitextWord(segments, posSegments[3]);
+                    const language = posSegments[2];
+                    const word = parseWikitextWord(segments, posSegments[3]);
 
-                        return {
-                            language: languageNameLookup.get(language) || language,
-                            word,
-                            relationship: DerivationType.ultimately,
-                        };
-                    }
-                    break;
+                    gotAsRoot = {
+                        language: languageNameLookup.get(language) || language,
+                        word,
+                        relationship: DerivationType.ultimately,
+                    };
+                    continue;
                 case 'm':
                 case 'mention':
-                    if (listingIndex === offset && relevantSections[i - 1].match(/^\s*(?:or|[\/,])\s*$/g)) {
+                    const isOrStatement = !!relevantSections[i - 1]?.match(/^\s*(?:or|[\/,])\s*$/g);
+
+                    let doesFollowStatement: RegExpMatchArray | null = null;
+                    if (!isOrStatement) {
+                        doesFollowStatement = relevantSections[i - 1]?.match(new RegExp(`${getRelationshipRegexp(false, true)}\\s*`));
+                    }
+
+                    if (listingIndex === offset && (isOrStatement || doesFollowStatement)) {
                         const language = posSegments[1];
                         const word = parseWikitextWord(segments, posSegments[2] || posSegments[3]);
 
                         return {
                             language: languageNameLookup.get(language) || language,
                             word,
-                            relationship: lastType,
+                            relationship: isOrStatement ? lastType : doesFollowStatement![1].trim().toLowerCase() as DerivationType,
                             statedGloss: posSegments[4] || segments.find(e => e.match(/(t|lit)=/g))?.split('=')[1],
                         };
                     }
@@ -383,6 +390,10 @@ export function parseEtymologyWikitext(wikitext: string, offset?: number): Etymo
         }
     }
 
+    if (gotAsRoot && (offset === 0 || offset === undefined)) {
+        return gotAsRoot;
+    }
+
     return null;
 }
 
@@ -409,7 +420,7 @@ export default async function populateEtymology(
                 listing.etymology,
                 listing,
             );
-            const parentWordListing = await populateEtymology(relevantListing!);
+            const sourceWordListing = await populateEtymology(relevantListing!);
 
             return {
                 word: listing.word,
@@ -421,7 +432,7 @@ export default async function populateEtymology(
                 ] : undefined,
                 language: listing.language,
                 relationship: DerivationType.inflection,
-                fromEtymologyListing: parentWordListing || undefined,
+                fromEtymologyListing: sourceWordListing || undefined,
             };
         } else {
             return basicResult;

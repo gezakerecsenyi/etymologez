@@ -31,6 +31,8 @@ export const getWordDataCallable = onCall<GetWordDataProps>(
     },
     async (request) => {
         try {
+            console.log('getting word');
+
             return await usingCache(async () => {
                 const data = await getWordData(
                     request.data.word,
@@ -68,11 +70,14 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
         cors: true,
     },
     async (request) => {
+        const body = request.data;
+
+        console.log('request made for', body.listing);
+
+        const identifier = getListingIdentifier(body.listing, body.getDescendants, body.deepDescendantSearch);
+
+        let recordSet: RecordSet | null = null;
         try {
-            const body = request.data;
-
-            const identifier = getListingIdentifier(body.listing, body.getDescendants, body.deepDescendantSearch);
-
             let doc = await firestore
                 .collection('searchPings')
                 .doc(identifier)
@@ -83,9 +88,11 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                 doc.exists &&
                 (data.isFinished || new Date().getTime() - data.lastUpdated < 2 * 60 * 1000)
             ) {
+                console.log('too recent!');
                 return true;
             } else {
                 if (doc.exists) {
+                    console.log('deleting');
                     await doc
                         .ref
                         .delete();
@@ -95,13 +102,17 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                         .where('searchIdentifier', '==', identifier)
                         .get();
                     await Promise.all(
-                        existingDocs.docs.map(e => e.ref.delete()),
+                        (existingDocs.docs || []).map(e => e.ref.delete()),
                     );
+
+                    console.log('done');
                 }
 
-                const recordSet = new RecordSet(identifier);
+                console.log('sending off');
+
+                recordSet = new RecordSet(identifier);
                 await usingCache(() => unrollEtymology(
-                    recordSet,
+                    recordSet!,
                     body.listing,
                     body.getDescendants,
                     body.deepDescendantSearch,
@@ -119,7 +130,14 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                 return true;
             }
         } catch (e) {
-            throw new HttpsError("internal", '');
+            console.log(e);
+
+            if (recordSet) {
+                recordSet.commit();
+                await recordSet.awaitAll();
+            }
+
+            throw new HttpsError("internal", JSON.stringify(e));
         }
     },
 );
