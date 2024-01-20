@@ -273,9 +273,6 @@ export function parseEtymologyString(etymologyEntries: StringBreakdown[], offset
                     .pathname
                     .replace(/^\/wiki\//g, '')
             );
-            if (cleanWord.includes('Reconstruction:')) {
-                cleanWord = cleanWord.split('/')[1];
-            }
 
             if (urlParse.pathname.startsWith('/wiki/')) {
                 return {
@@ -427,7 +424,7 @@ export default async function populateEtymology(
                 rawResult: inflectionDef.inflectionOf ? [
                     {
                         type: 'string',
-                        text: `Inflection of ${listing.language} ${inflectionDef.inflectionOf}`,
+                        text: `Variant of ${listing.language} ${inflectionDef.inflectionOf}`,
                     },
                 ] : undefined,
                 language: listing.language,

@@ -1,4 +1,4 @@
-import { getListingCacheKey, getListingIdentifier } from '../../src/global/util';
+import { cleanWord, getListingCacheKey, getListingIdentifier } from '../../src/global/util';
 import { DerivationType, DescendantRelationship, EtymologyListing, WordListing } from '../../src/types';
 import { getDescendantsFromPage } from './categories';
 import { fetchDescendants } from './fetchDescendants';
@@ -47,31 +47,34 @@ export default async function unrollEtymology(
     }
 
     let id: string | undefined = undefined;
+
     async function addRecordHere(
-        sourceWord: string,
-        sourceLanguage: string,
-        sourceListing: WordListing,
+        originWord: string,
+        originLanguage: string,
+        originListing: WordListing,
         relationship: DerivationType | DescendantRelationship,
         isPriorityChoice: boolean,
+        isFromBackup: boolean = false,
     ) {
         const [record] = recordSet.add({
-            parentWord: listing.word,
+            parentWord: cleanWord(listing.word),
             parentDefinition: listing.definition!,
             parentLanguage: listing.language,
-            originWord: sourceWord,
-            originDefinition: sourceListing.definition!,
-            originLanguage: sourceLanguage,
+            originWord: cleanWord(originWord),
+            originDefinition: originListing.definition!,
+            originLanguage: originLanguage,
             relationship,
             parentWordListing: listing,
             isPriorityChoice,
             createdBy: 'parent-function',
+            isBackupChoice: isFromBackup,
         });
 
         if (getDescendants) {
             metListings.add(listingId);
         }
 
-        await unrollEtymology(recordSet, sourceListing, getDescendants, deepDescendantSearch, metListings);
+        await unrollEtymology(recordSet, originListing, getDescendants, deepDescendantSearch, metListings);
 
         id = record.id!;
     }
@@ -79,10 +82,13 @@ export default async function unrollEtymology(
     let offset = 0;
     let etymologyHere: EtymologyListing | undefined;
     do {
-        const newEtymology = await populateEtymology(listing, offset);
+        const newEtymology = listing.etymology?.fromEtymologyListing && offset === 0 ?
+            listing.etymology :
+            await populateEtymology(listing, offset);
 
         if (newEtymology) {
             etymologyHere = newEtymology;
+            listing.etymology = etymologyHere;
 
             if (etymologyHere.fromEtymologyListing) {
                 const sources = await getWordData(
@@ -97,7 +103,6 @@ export default async function unrollEtymology(
                 );
 
                 if (listingHere) {
-                    listing.etymology = etymologyHere;
                     await addRecordHere(
                         etymologyHere.fromEtymologyListing.word,
                         etymologyHere.fromEtymologyListing.language,
@@ -136,6 +141,7 @@ export default async function unrollEtymology(
             backupSourceWord,
             DerivationType.ultimately,
             false,
+            true,
         );
     }
 

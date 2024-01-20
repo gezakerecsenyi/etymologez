@@ -55,3 +55,16 @@ export function getWiktionaryLabel(
     return formattedWord;
 }
 
+export function cleanWord(word: string): string {
+    let newWord = word;
+    if (newWord.startsWith('Reconstruction:')) {
+        newWord = `*${newWord.split('/')[1]}`;
+    }
+
+    if (newWord.startsWith('**')) {
+        newWord = newWord.slice(1);
+    }
+
+    return newWord;
+}
+

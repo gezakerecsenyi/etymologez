@@ -20,7 +20,7 @@ export async function fetchDescendants(
         return;
     }
 
-    await Promise.all(
+    await Promise.allSettled(
         listing
             .descendantsSectionHeads
             .map(async head => {

@@ -1,20 +1,25 @@
-import { Core, ElementDefinition } from 'cytoscape';
+import cytoscape, { Core, ElementDefinition } from 'cytoscape';
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
 import './styles.scss';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import CytoscapeComponent from 'react-cytoscapejs';
+import getCytoscapeStylesheet from './getCytoscapeStylesheet';
 import { callGetWordData, callUnrollEtymology } from './getFromAPI';
 import { db } from './index';
 import processRecords, { LanguageTable } from './processRecords';
-import { EtymologyRecord, relationshipCategories, SearchPing, WordListing } from './types';
+import { EtymologyRecord, SearchPing, WordListing } from './types';
 import { getListingIdentifier, getWiktionaryLabel } from './global/util';
 import github from './github.png';
+import fcose, { FcoseLayoutOptions } from 'cytoscape-fcose';
+
+cytoscape.use( fcose );
 
 export interface NodeDefinitionData {
     id: string,
     label: string,
     language: string,
     parentWordListing: WordListing,
+    isGroup: boolean,
 }
 
 export interface SearchMeta {
@@ -35,7 +40,7 @@ function App() {
     const [hasMadeSearch, setHasMadeSearch] = useState(false);
 
     const [includeDescendants, setIncludeDescendants] = useState(true);
-    const [deepDescendantSearch, setDeepDescendantSearch] = useState(false);
+    const [deepDescendantSearch, setDeepDescendantSearch] = useState(true);
 
     const [word, setWord] = useState('test');
     const [onlyEnglish, setOnlyEnglish] = useState(true);
@@ -49,15 +54,15 @@ function App() {
     const [metadata, setMetadata] = useState<SearchMeta | null>(null);
     const [expectListingsAt, setExpectListingsAt] = useState<string | null>(null);
 
-    const purgeFalseRoots = useRef(true);
-    const [purgeRootUpdater, setPurgeRootUpdater] = useState(true);
+    const keepImproperRoots = useRef(false);
+    const [keepRootsUpdater, setKeepRootsUpdater] = useState(false);
     useEffect(() => {
-        purgeFalseRoots.current = purgeRootUpdater;
+        keepImproperRoots.current = keepRootsUpdater;
 
         if (!loading) {
             setCy(cy);
         }
-    }, [purgeRootUpdater]);
+    }, [keepRootsUpdater]);
 
     useEffect(() => {
         setListingIndex(0);
@@ -186,7 +191,7 @@ function App() {
                         const res = processRecords(
                             records,
                             listings[listingIndex],
-                            purgeFalseRoots.current,
+                            keepImproperRoots.current,
                             languageTable.current,
                         );
 
@@ -231,60 +236,18 @@ function App() {
                 cy.add(newNodes);
                 cy.add(data.filter(e => e.group === 'edges'));
 
-                cy.style([
-                    ...Object.values(languageTable.current),
-                    {
-                        selector: 'node',
-                        style: {
-                            'opacity': 0.9,
-                        },
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'width': 3,
-                            'line-color': '#cccccc',
-                            'target-arrow-color': '#cccccc',
-                            'target-arrow-shape': 'triangle',
-                            'curve-style': 'bezier',
-                        },
-                    },
-                    ...relationshipCategories.map(e => ({
-                        selector: `edge[category="${e[0]}"]`,
-                        style: {
-                            'line-style': e[0],
-                            ...e[2],
-                        },
-                    })),
-                    {
-                        selector: 'node[isSource="yes"]',
-                        style: {
-                            'border-width': '3px',
-                            'border-color': '#0066c2',
-                            'background-color': '#697373',
-                            'text-outline-color': '#2677bb',
-                            'font-weight': 'bold',
-                        },
-                    },
-                    {
-                        selector: 'node[isEtymon="yes"]',
-                        style: {
-                            'font-weight': 'bold',
-                        },
-                    },
-                    {
-                        'selector': 'node:selected',
-                        'style': {
-                            'border-width': '3px',
-                            'border-color': '#aad8ff',
-                            'background-color': '#697373',
-                            'text-outline-color': '#77828c',
-                        },
-                    },
-                ]);
+                cy.style(
+                    getCytoscapeStylesheet(
+                        languageTable.current!,
+                    )
+                );
 
                 cy.on('tap', 'node', (e) => {
                     const data = e.target.data() as NodeDefinitionData;
+
+                    if (data.isGroup) {
+                        return;
+                    }
 
                     setWord(data.label);
                     setOnlyEnglish(false);
@@ -302,11 +265,14 @@ function App() {
                     }
                 });
 
-                const layout = cy.layout({
-                    name: 'cose',
-                    animate: false,
-                    randomize: false,
-                });
+                const fcoseOptions: FcoseLayoutOptions = {
+                    name: 'fcose',
+                    animate: true,
+                    quality: 'proof',
+                    animationDuration: 500,
+                };
+
+                const layout = cy.layout(fcoseOptions);
                 layout.run();
             } else if (cy) {
                 cy.remove(cy.elements('node'));
@@ -346,11 +312,10 @@ function App() {
                 <label className='purge-option'>
                     <input
                         type='checkbox'
-                        onChange={e => setPurgeRootUpdater(e.currentTarget.checked)}
-                        defaultChecked
+                        onChange={e => setKeepRootsUpdater(e.currentTarget.checked)}
                     />
 
-                    Purge false roots?&nbsp;
+                    Show improper roots&nbsp;
 
                     <button onClick={() => setShowInfo(!showInfo)}>
                         {showInfo ? 'Hide' : 'Info'}
@@ -364,7 +329,8 @@ function App() {
                                 often than not, this is indicative of an error in the generation, but on occasion,
                                 particularly when dealing with poorly-documented trees, pruning all such detached subtrees
                                 could remove a lot of otherwise-useful data, especially when only a single link is
-                                missing. </div>
+                                missing.
+                            </div>
                         )
                     }
                 </label>
@@ -489,8 +455,9 @@ function App() {
                                                     listings[listingIndex]
                                                         .etymology!
                                                         .rawResult!
-                                                        .filter(e => !(e.type === 'link' && e.text.trim()
-                                                                                             .match(/^\[\d+\]$/g)))
+                                                        .filter(e => !(
+                                                            e.type === 'link' && e.text.trim().match(/^\[\d+\]$/g)
+                                                        ))
                                                         .map((e, i) => e.type === 'link' ? (
                                                             <a
                                                                 href={e.linkTo!}

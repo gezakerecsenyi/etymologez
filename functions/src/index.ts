@@ -31,8 +31,6 @@ export const getWordDataCallable = onCall<GetWordDataProps>(
     },
     async (request) => {
         try {
-            console.log('getting word');
-
             return await usingCache(async () => {
                 const data = await getWordData(
                     request.data.word,
@@ -72,8 +70,6 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
     async (request) => {
         const body = request.data;
 
-        console.log('request made for', body.listing);
-
         const identifier = getListingIdentifier(body.listing, body.getDescendants, body.deepDescendantSearch);
 
         let recordSet: RecordSet | null = null;
@@ -88,11 +84,9 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                 doc.exists &&
                 (data.isFinished || new Date().getTime() - data.lastUpdated < 2 * 60 * 1000)
             ) {
-                console.log('too recent!');
                 return true;
             } else {
                 if (doc.exists) {
-                    console.log('deleting');
                     await doc
                         .ref
                         .delete();
@@ -104,11 +98,7 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                     await Promise.all(
                         (existingDocs.docs || []).map(e => e.ref.delete()),
                     );
-
-                    console.log('done');
                 }
-
-                console.log('sending off');
 
                 recordSet = new RecordSet(identifier);
                 await usingCache(() => unrollEtymology(
@@ -130,7 +120,7 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                 return true;
             }
         } catch (e) {
-            console.log(e);
+            console.log('got err', e);
 
             if (recordSet) {
                 recordSet.commit();

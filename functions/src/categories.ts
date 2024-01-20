@@ -1,4 +1,4 @@
-import { CategoryDump, SectionHTML, SectionWikitext, WordListing } from '../../src/types';
+import { CategoryDump, DescendantRelationship, SectionHTML, SectionWikitext, WordListing } from '../../src/types';
 import { fetchUrl, fetchWiktionaryData } from './cache';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
@@ -59,7 +59,7 @@ export async function getDescendantsFromPage(
         return;
     }
 
-    await Promise.all(
+    await Promise.allSettled(
         listing
             .descendantsSectionHeads
             .map(async head => {
@@ -97,7 +97,7 @@ export async function getDescendantsFromPage(
                     const leaves = await flattenCategoryLeaves(categoryUrl);
 
                     for (const chunk of chunks(leaves, 100)) {
-                        await Promise.all(
+                        await Promise.allSettled(
                             chunk.map(async leaf => {
                                 const wordHere = await getWordData(
                                     leaf[1],
@@ -111,6 +111,22 @@ export async function getDescendantsFromPage(
                                 );
 
                                 if (relevantListing) {
+                                    recordSet.add(
+                                        {
+                                            createdBy: 'categories-backup',
+                                            isPriorityChoice: false,
+                                            isBackupChoice: true,
+                                            originLanguage: listing.language,
+                                            originWord: listing.word,
+                                            originDefinition: listing.definition,
+                                            parentLanguage: relevantListing.language,
+                                            parentWord: relevantListing.word,
+                                            parentDefinition: relevantListing.definition,
+                                            parentWordListing: relevantListing,
+                                            relationship: DescendantRelationship.inherited,
+                                        }
+                                    );
+
                                     await unrollEtymology(
                                         recordSet,
                                         relevantListing,

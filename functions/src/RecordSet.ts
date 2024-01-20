@@ -1,4 +1,5 @@
 import hash from 'object-hash';
+import { cleanWord } from '../../src/global/util';
 import { EtymologyRecord, SearchPing } from '../../src/types';
 import { firestore } from './index';
 
@@ -91,8 +92,12 @@ export default class RecordSet {
         const corrected: EtymologyRecord[] = e.map(t => {
             const correctedValue = {
                 ...Object.assign({}, t),
-                word: decodeURIComponent(t.parentWord).replace(/[a-zA-Z_\-:]+\//g, ''),
-                sourceWord: decodeURIComponent(t.originWord).replace(/[a-zA-Z_\-:]+\//g, ''),
+                parentWord: cleanWord(
+                    decodeURIComponent(t.parentWord).replace(/[a-zA-Z_\-:]+\//g, '')
+                ),
+                originWord: cleanWord(
+                    decodeURIComponent(t.originWord).replace(/[a-zA-Z_\-:]+\//g, '')
+                ),
                 searchIdentifier: this.searchIdentifier,
             };
 

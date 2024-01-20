@@ -4,13 +4,13 @@ export interface EtymologyListing {
     language: string;
     relationship?: DerivationType;
     fromEtymologyListing?: EtymologyListing;
-    statedGloss?: string;
+    statedGloss?: string | null;
 }
 
 export interface DefinitionSpec {
     text: string;
     isInflection: boolean;
-    inflectionOf?: string;
+    inflectionOf?: string | null;
 }
 
 export const partsOfSpeech = [
@@ -123,7 +123,7 @@ export enum DescendantRelationship {
     semanticLoan = 'semantic loan',
     transliteration = 'transliteration',
     derivative = 'reshaped by analogy or addition of morphemes',
-    inherited = 'inherited'
+    inherited = 'inherited',
 }
 
 export interface CategoryDump {
@@ -152,6 +152,7 @@ export interface EtymologyRecord {
     isComplete?: boolean;
     listingIdentifier?: string;
     isPriorityChoice: boolean;
+    isBackupChoice?: boolean;
     createdBy: string;
 }
 
