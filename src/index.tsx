@@ -11,7 +11,7 @@ export const db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
 });
 export const functions = getFunctions(app, 'us-central1');
-connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+// connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
 const root = ReactDOM.createRoot(
     document.getElementById('root') as HTMLElement,
