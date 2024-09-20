@@ -110,6 +110,7 @@ export default async function unrollEtymology(
                         etymologyHere.relationship!,
                         isPriorityChoice,
                     );
+
                     break;
                 } else {
                     offset++;

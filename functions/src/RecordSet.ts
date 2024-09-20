@@ -7,7 +7,7 @@ export default class RecordSet {
     private static maxSize = 40;
     public searchIdentifier: string;
     private localChanges: Map<string, EtymologyRecord>;
-    private openPromises: Promise<any>[];
+    private openPromises: [string, 'create' | 'update' | 'delete', Promise<any>][];
     private currentRecordCount: number;
     private inInitialPhase: boolean;
 
@@ -38,32 +38,67 @@ export default class RecordSet {
 
     updatePing() {
         this.openPromises.push(
-            firestore
-                .collection('searchPings')
-                .doc(this.searchIdentifier)
-                .set({
-                    id: this.searchIdentifier,
-                    lastUpdated: new Date().getTime(),
-                } as SearchPing),
+            [
+                'ping',
+                'create',
+                firestore
+                    .collection('searchPings')
+                    .doc(this.searchIdentifier)
+                    .set({
+                        id: this.searchIdentifier,
+                        lastUpdated: new Date().getTime(),
+                    } as SearchPing),
+            ]
         );
     }
 
     async awaitAll() {
-        await Promise.allSettled(this.openPromises);
+        for (const type of ['create', 'update', 'delete']) {
+            await Promise.allSettled(
+                this
+                    .openPromises
+                    .filter(e => e[1] === type)
+                    .map(e => e[2])
+            );
+        }
     }
 
     commit() {
         this.localChanges.forEach((v, k) => {
             this.openPromises.push(
-                firestore
-                    .collection('records')
-                    .doc(k)
-                    .set(v, { merge: true }),
+                [
+                    k,
+                    'create',
+                    firestore
+                        .collection('records')
+                        .doc(k)
+                        .set(v, { merge: true }),
+                ]
             );
         });
 
         this.updatePing();
         this.localChanges = new Map();
+    }
+
+    delete(id: string) {
+        if (this.localChanges.has(id)) {
+            this.localChanges.delete(id);
+        } else {
+            this.openPromises.push(
+                [
+                    id,
+                    'delete',
+                    firestore
+                        .collection('records')
+                        .doc(id)
+                        .delete()
+                        .catch(() => {
+                            console.log('attempted to delete non-existant??');
+                        }),
+                ]
+            );
+        }
     }
 
     update(id: string, data: Partial<EtymologyRecord>) {
@@ -77,13 +112,17 @@ export default class RecordSet {
             );
         } else {
             this.openPromises.push(
-                firestore
-                    .collection('records')
-                    .doc(id)
-                    .set(data, { merge: true })
-                    .catch(() => {
-                        console.log('attempted to update non-existant??');
-                    }),
+                [
+                    id,
+                    'update',
+                    firestore
+                        .collection('records')
+                        .doc(id)
+                        .set(data, { merge: true })
+                        .catch(() => {
+                            console.log('attempted to update non-existant??');
+                        }),
+                ]
             );
         }
     }
