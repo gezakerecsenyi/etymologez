@@ -41,6 +41,7 @@ function App() {
 
     const [includeDescendants, setIncludeDescendants] = useState(true);
     const [deepDescendantSearch, setDeepDescendantSearch] = useState(true);
+    const [depthFirst, setDepthFirst] = useState(true);
 
     const [word, setWord] = useState('test');
     const [onlyEnglish, setOnlyEnglish] = useState(true);
@@ -144,7 +145,7 @@ function App() {
                 if (doc.exists() && (doc.data() as SearchPing).isFinished) {
                     setIsJustFetching(true);
                 } else {
-                    callUnrollEtymology(listing, includeDescendants, deepDescendantSearch)
+                    callUnrollEtymology(listing, includeDescendants, deepDescendantSearch, depthFirst)
                         .catch(() => {
                             setLoading(false);
                             setExpectListingsAt(null);
@@ -161,6 +162,7 @@ function App() {
             includeDescendants,
             deepDescendantSearch,
             expectListingsAt,
+            depthFirst,
         ],
     );
 
@@ -530,6 +532,17 @@ function App() {
                                             />
 
                                             Deep descendant search?
+                                        </label>
+
+                                        <label>
+                                            <input
+                                                type='checkbox'
+                                                checked={depthFirst}
+                                                disabled={loading}
+                                                onChange={e => setDepthFirst(e.currentTarget.checked)}
+                                            />
+
+                                            Depth-first?
                                         </label>
                                     </div>
                                 </div>

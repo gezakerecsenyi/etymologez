@@ -19,11 +19,16 @@ export const wikidataDescendantTagMap = new Map(Object.entries({
     der: DescendantRelationship.derivative,
 }));
 
+export interface SearchOptions {
+    getDescendants: boolean;
+    deepDescendantSearch: boolean;
+    depthFirst: boolean;
+}
+
 export default async function unrollEtymology(
     recordSet: RecordSet,
     listing: WordListing,
-    getDescendants: boolean = false,
-    deepDescendantSearch: boolean = false,
+    searchOptions: SearchOptions,
     metListings: Set<string> = new Set<string>(),
     backupSourceWord?: WordListing,
 ) {
@@ -31,12 +36,12 @@ export default async function unrollEtymology(
         return;
     }
 
-    console.log('unrolling', listing.word);
+    log('unrolling', listing.word);
 
     const listingIdentifier = getListingIdentifier(
         listing,
-        getDescendants,
-        deepDescendantSearch,
+        searchOptions.getDescendants,
+        searchOptions.deepDescendantSearch,
     );
     const existingResults = await RecordSet.getPrecomputedRecords(listingIdentifier);
     if (existingResults.length) {
@@ -51,6 +56,7 @@ export default async function unrollEtymology(
 
     let id: string | undefined = undefined;
 
+    const promiseList: Promise<void>[] = [];
     async function addRecordHere(
         originWord: string,
         originLanguage: string,
@@ -73,11 +79,16 @@ export default async function unrollEtymology(
             isBackupChoice: isFromBackup,
         });
 
-        if (getDescendants) {
+        if (searchOptions.getDescendants) {
             metListings.add(listingId);
         }
 
-        await unrollEtymology(recordSet, originListing, getDescendants, deepDescendantSearch, metListings);
+        const promiseHere = unrollEtymology(recordSet, originListing, searchOptions, metListings);
+        if (searchOptions.depthFirst) {
+            await promiseHere;
+        } else {
+            promiseList.push(promiseHere);
+        }
 
         id = record.id!;
     }
@@ -152,14 +163,18 @@ export default async function unrollEtymology(
     metListings.add(listingId);
 
     log('now getting descendants');
-    if (getDescendants) {
-        await getDescendantsFromPage(recordSet, listing, metListings, deepDescendantSearch);
-        await fetchDescendants(recordSet, listing, metListings, deepDescendantSearch);
+    if (searchOptions.getDescendants) {
+        await getDescendantsFromPage(recordSet, listing, metListings, searchOptions);
+        await fetchDescendants(recordSet, listing, metListings, searchOptions);
     }
 
     log('done getting desc');
 
-    if (id) {
+    log('promises left:', promiseList.length);
+
+    await Promise.allSettled(promiseList);
+
+    if (id && !searchOptions.depthFirst) {
         recordSet.update(id!, {
             isComplete: true,
             listingIdentifier,

@@ -8,14 +8,14 @@ import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
 import populateEtymology from './populateEtymology';
 import RecordSet from './RecordSet';
-import { wikidataDescendantTagMap } from './unrollEtymology';
+import { SearchOptions, wikidataDescendantTagMap } from './unrollEtymology';
 import { parseWikitextWord } from './util';
 
 export async function fetchDescendants(
     recordSet: RecordSet,
     listing: WordListing,
     metListings: Set<string>,
-    deepDescendantSearch?: boolean,
+    searchOptions: SearchOptions
 ) {
     if (!listing?.descendantsSectionHeads) {
         return;
@@ -120,7 +120,7 @@ export async function fetchDescendants(
 
                     recordSet.add(recordHere);
 
-                    if (relevantListing && deepDescendantSearch) {
+                    if (relevantListing && searchOptions.deepDescendantSearch) {
                         const listingId = getListingCacheKey(relevantListing);
                         if (!metListings.has(listingId)) {
                             metListings.add(listingId);
@@ -129,13 +129,13 @@ export async function fetchDescendants(
                                 recordSet,
                                 relevantListing,
                                 metListings,
-                                deepDescendantSearch,
+                                searchOptions,
                             );
                             await fetchDescendants(
                                 recordSet,
                                 relevantListing,
                                 metListings,
-                                deepDescendantSearch
+                                searchOptions,
                             );
                         }
                     }

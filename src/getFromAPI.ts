@@ -30,6 +30,7 @@ export function callUnrollEtymology(
     listing: WordListing,
     getDescendants: boolean = false,
     deepDescendantSearch: boolean = false,
+    depthFirst: boolean = false,
 ) {
     const unrollEtymology = httpsCallable<UnrollEtymologyProps, boolean>(
         functions,
@@ -43,6 +44,7 @@ export function callUnrollEtymology(
             listing,
             getDescendants,
             deepDescendantSearch,
+            depthFirst,
         }
     )
 }

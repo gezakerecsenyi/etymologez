@@ -59,6 +59,7 @@ export interface UnrollEtymologyProps {
     listing: WordListing,
     getDescendants: boolean,
     deepDescendantSearch: boolean,
+    depthFirst: boolean,
 }
 export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
     {
@@ -107,8 +108,7 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                 await usingCache(() => unrollEtymology(
                     recordSet!,
                     body.listing,
-                    body.getDescendants,
-                    body.deepDescendantSearch,
+                    body,
                 ));
 
                 recordSet.commit();

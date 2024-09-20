@@ -4,7 +4,7 @@ import log from './debug';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
 import RecordSet from './RecordSet';
-import unrollEtymology from './unrollEtymology';
+import unrollEtymology, { SearchOptions } from './unrollEtymology';
 import { chunks } from './util';
 
 export async function flattenCategoryLeaves(
@@ -54,7 +54,7 @@ export async function getDescendantsFromPage(
     recordSet: RecordSet,
     listing: WordListing,
     metListings: Set<string>,
-    deepDescendantSearch?: boolean,
+    searchOptions: SearchOptions
 ) {
     if (!listing?.descendantsSectionHeads) {
         return;
@@ -67,7 +67,7 @@ export async function getDescendantsFromPage(
         listing
             .descendantsSectionHeads
             .map(async head => {
-                console.log('getting', head);
+                log('getting', head);
 
                 const wikiTextHere = await fetchWiktionaryData(
                     listing.word,
@@ -136,8 +136,11 @@ export async function getDescendantsFromPage(
                                     await unrollEtymology(
                                         recordSet,
                                         relevantListing,
-                                        deepDescendantSearch,
-                                        deepDescendantSearch,
+                                        {
+                                            deepDescendantSearch: searchOptions.deepDescendantSearch,
+                                            getDescendants: searchOptions.deepDescendantSearch,
+                                            depthFirst: searchOptions.depthFirst,
+                                        },
                                         metListings,
                                         listing,
                                     );
