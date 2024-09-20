@@ -1,6 +1,7 @@
 import hash from 'object-hash';
 import { cleanWord } from '../../src/global/util';
 import { EtymologyRecord, SearchPing } from '../../src/types';
+import log from './debug';
 import { firestore } from './index';
 
 export default class RecordSet {
@@ -94,7 +95,7 @@ export default class RecordSet {
                         .doc(id)
                         .delete()
                         .catch(() => {
-                            console.log('attempted to delete non-existant??');
+                            log('attempted to delete non-existant??');
                         }),
                 ]
             );
@@ -120,7 +121,7 @@ export default class RecordSet {
                         .doc(id)
                         .set(data, { merge: true })
                         .catch(() => {
-                            console.log('attempted to update non-existant??');
+                            log('attempted to update non-existant??');
                         }),
                 ]
             );

@@ -3,6 +3,7 @@ import { DescendantRelationship, EtymologyRecord, SectionWikitext, WordListing }
 import { fetchWiktionaryData } from './cache';
 import { getDescendantsFromPage } from './categories';
 import { languageNameLookup } from './data';
+import log from './debug';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
 import populateEtymology from './populateEtymology';
@@ -19,6 +20,8 @@ export async function fetchDescendants(
     if (!listing?.descendantsSectionHeads) {
         return;
     }
+
+    log('fetchdescendants for', listing.word);
 
     await Promise.allSettled(
         listing
@@ -120,6 +123,8 @@ export async function fetchDescendants(
                     if (relevantListing && deepDescendantSearch) {
                         const listingId = getListingCacheKey(relevantListing);
                         if (!metListings.has(listingId)) {
+                            metListings.add(listingId);
+
                             await getDescendantsFromPage(
                                 recordSet,
                                 relevantListing,
@@ -132,8 +137,6 @@ export async function fetchDescendants(
                                 metListings,
                                 deepDescendantSearch
                             );
-
-                            metListings.add(listingId);
                         }
                     }
                 }

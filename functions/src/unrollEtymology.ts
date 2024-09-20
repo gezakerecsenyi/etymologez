@@ -1,6 +1,7 @@
 import { cleanWord, getListingCacheKey, getListingIdentifier } from '../../src/global/util';
 import { DerivationType, DescendantRelationship, EtymologyListing, WordListing } from '../../src/types';
 import { getDescendantsFromPage } from './categories';
+import log from './debug';
 import { fetchDescendants } from './fetchDescendants';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
@@ -29,6 +30,8 @@ export default async function unrollEtymology(
     if (!listing) {
         return;
     }
+
+    console.log('unrolling', listing.word);
 
     const listingIdentifier = getListingIdentifier(
         listing,
@@ -148,10 +151,13 @@ export default async function unrollEtymology(
 
     metListings.add(listingId);
 
+    log('now getting descendants');
     if (getDescendants) {
         await getDescendantsFromPage(recordSet, listing, metListings, deepDescendantSearch);
         await fetchDescendants(recordSet, listing, metListings, deepDescendantSearch);
     }
+
+    log('done getting desc');
 
     if (id) {
         recordSet.update(id!, {

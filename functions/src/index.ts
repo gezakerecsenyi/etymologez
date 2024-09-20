@@ -4,6 +4,7 @@ import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { getListingIdentifier } from '../../src/global/util';
 import { SearchPing, WordListing } from '../../src/types';
 import { usingCache } from './cache';
+import log from './debug';
 import getWordData from './getWordData';
 import populateEtymology from './populateEtymology';
 import RecordSet from './RecordSet';
@@ -100,6 +101,8 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                     );
                 }
 
+                log('initiating new unrolling');
+
                 recordSet = new RecordSet(identifier);
                 await usingCache(() => unrollEtymology(
                     recordSet!,
@@ -111,6 +114,8 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                 recordSet.commit();
                 await recordSet.awaitAll();
 
+                log('done');
+
                 await doc
                     .ref
                     .update({
@@ -120,7 +125,7 @@ export const unrollEtymologyCallable = onCall<UnrollEtymologyProps>(
                 return true;
             }
         } catch (e) {
-            console.log('got err', e);
+            log('got err', e);
 
             if (recordSet) {
                 recordSet.commit();

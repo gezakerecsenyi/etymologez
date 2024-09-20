@@ -1,5 +1,6 @@
 import { CategoryDump, DescendantRelationship, SectionHTML, SectionWikitext, WordListing } from '../../src/types';
 import { fetchUrl, fetchWiktionaryData } from './cache';
+import log from './debug';
 import { getRelevantListing } from './getRelevantListing';
 import getWordData from './getWordData';
 import RecordSet from './RecordSet';
@@ -59,10 +60,15 @@ export async function getDescendantsFromPage(
         return;
     }
 
+    log('getting from page');
+    log('to do:', listing.descendantsSectionHeads);
+
     await Promise.allSettled(
         listing
             .descendantsSectionHeads
             .map(async head => {
+                console.log('getting', head);
+
                 const wikiTextHere = await fetchWiktionaryData(
                     listing.word,
                     'wikitext',
